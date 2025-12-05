@@ -1,21 +1,30 @@
 import { router } from "expo-router";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import {
+    collection,
+    doc,
+    getDoc,
+    onSnapshot,
+    query,
+    where,
+} from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Button, Text, View } from "react-native";
-import { auth, firestore } from "../config/firebase";
+import { auth, firestore } from "../../config/firebase";
 
-const ChildDashboardScreen = () => {
+const DashboardScreen = () => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [linkKey, setLinkKey] = useState<string | null>(null);
+    const [children, setChildren] = useState<Array<any>>([]);
+    const [childrenLoading, setChildrenLoading] = useState(false);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
             } else {
-                router.replace("/childLogin");
+                router.replace("/login");
             }
             setLoading(false);
         });
@@ -28,25 +37,10 @@ const ChildDashboardScreen = () => {
         let cancelled = false;
         (async () => {
             try {
-                const childSnap = await getDoc(
-                    doc(firestore, "users", user.uid)
-                );
+                const snap = await getDoc(doc(firestore, "users", user.uid));
                 if (cancelled) return;
-                if (!childSnap.exists()) {
-                    setLinkKey(null);
-                    return;
-                }
-                const childData = childSnap.data() as any;
-                if (childData.parentUid) {
-                    const parentSnap = await getDoc(
-                        doc(firestore, "users", childData.parentUid)
-                    );
-                    if (cancelled) return;
-                    setLinkKey(
-                        parentSnap.exists()
-                            ? (parentSnap.data() as any).linkKey ?? null
-                            : null
-                    );
+                if (snap.exists()) {
+                    setLinkKey((snap.data() as any).linkKey ?? null);
                 } else {
                     setLinkKey(null);
                 }
@@ -57,6 +51,33 @@ const ChildDashboardScreen = () => {
         return () => {
             cancelled = true;
         };
+    }, [user]);
+
+    useEffect(() => {
+        if (!user) return;
+        setChildrenLoading(true);
+
+        const q = query(
+            collection(firestore, "users"),
+            where("parentUid", "==", user.uid)
+        );
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const list = snapshot.docs.map((d) => ({
+                    id: d.id,
+                    ...(d.data() as any),
+                }));
+                setChildren(list);
+                setChildrenLoading(false);
+            },
+            (err) => {
+                console.error("Children listener error:", err);
+                setChildrenLoading(false);
+            }
+        );
+
+        return () => unsubscribe();
     }, [user]);
 
     const handleSignOut = async () => {
@@ -96,13 +117,38 @@ const ChildDashboardScreen = () => {
                 </Text>
 
                 <Text className="text-sm text-gray-500 font-mono">
-                    Parent Uid: {linkKey ?? "Not set"}
-                </Text>
-
-                <Text className="text-sm text-gray-500 font-mono">
-                    User Id: {user.uid}
+                    Link Key: {linkKey ?? "Not set"}
                 </Text>
             </View>
+
+            <Text className="text-lg font-semibold text-gray-700 mb-2">
+                Children
+            </Text>
+
+            {childrenLoading ? (
+                <ActivityIndicator size="small" color="#007AFF" />
+            ) : children.length === 0 ? (
+                <Text className="text-sm text-gray-500">
+                    No children connected yet.
+                </Text>
+            ) : (
+                children.map((child) => (
+                    <View
+                        key={child.id}
+                        className="mt-3 bg-gray-50 p-3 rounded"
+                    >
+                        <Text className="font-medium text-blue-600">
+                            {child.name ?? child.email}
+                        </Text>
+                        <Text className="text-sm text-gray-500">
+                            Email: {child.email ?? "—"}
+                        </Text>
+                        <Text className="text-xs text-gray-400">
+                            UID: {child.id}
+                        </Text>
+                    </View>
+                ))
+            )}
 
             <View className="rounded-lg overflow-hidden">
                 <Button
@@ -115,4 +161,4 @@ const ChildDashboardScreen = () => {
     );
 };
 
-export default ChildDashboardScreen;
+export default DashboardScreen;

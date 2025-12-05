@@ -1,17 +1,17 @@
 import { router } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import {
-    collection,
-    doc,
-    getDocs,
-    query,
-    serverTimestamp,
-    setDoc,
-    where
+  collection,
+  doc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  where
 } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { ActivityIndicator, Button, Text, TextInput, View } from 'react-native';
-import { auth, firestore } from '../config/firebase';
+import { auth, firestore } from '../../config/firebase';
 
 const ChildRegistrationScreen = () => {
   const [email, setEmail] = useState('');
@@ -63,7 +63,7 @@ const ChildRegistrationScreen = () => {
       });
 
 
-      router.replace("/childDashboard");
+      router.replace("/child/dashboard");
     } catch (err: any) {
       console.error(err);
       const message =
@@ -128,7 +128,7 @@ const ChildRegistrationScreen = () => {
 
       <View className="flex-row justify-center mt-5">
         <Text className="text-gray-600">Already have an account? </Text>
-        <Text className="text-blue-600 font-bold" onPress={() => router.replace('/childLogin')}>
+        <Text className="text-blue-600 font-bold" onPress={() => router.replace('/child/login')}>
           Sign In
         </Text>
       </View>

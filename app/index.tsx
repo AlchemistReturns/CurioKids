@@ -4,12 +4,16 @@ import { Text, TouchableOpacity, View } from 'react-native';
 
 const AppIndexScreen = () => {
 
-    const goToLogin = () => {
-        router.push('/login');
+    const goToRegistration = () => {
+        router.push('/parent/registration');
     };
 
-    const goToChildLogin = () => {
-        router.push('/childLogin')
+    const goToChildRegistration = () => {
+        router.push('/child/registration')
+    }
+
+    const goToLogin = () => {
+        router.push('/login')
     }
 
     return (
@@ -27,16 +31,25 @@ const AppIndexScreen = () => {
                 onPress={goToLogin}
             >
                 <Text className="text-white text-xl font-semibold text-center">
-                    Parent Login
+                    Login
+                </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                className="bg-blue-600 py-4 px-8 rounded-xl shadow-md min-w-[200px] mb-4"
+                onPress={goToRegistration}
+            >
+                <Text className="text-white text-xl font-semibold text-center">
+                    Parent Registration
                 </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
                 className="bg-blue-600 py-4 px-8 rounded-xl shadow-md min-w-[200px]"
-                onPress={goToChildLogin}
+                onPress={goToChildRegistration}
             >
                 <Text className="text-white text-xl font-semibold text-center">
-                    Child Login
+                    Child Registration
                 </Text>
             </TouchableOpacity>
 

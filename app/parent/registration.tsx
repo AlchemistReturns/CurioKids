@@ -3,7 +3,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { ActivityIndicator, Button, Text, TextInput, View } from 'react-native';
-import { auth, firestore } from '../config/firebase';
+import { auth, firestore } from '../../config/firebase';
 
 const RegistrationScreen = () => {
     const [email, setEmail] = useState('');
@@ -48,7 +48,7 @@ const RegistrationScreen = () => {
                 createdAt: serverTimestamp(),
             });
 
-            router.replace('/dashboard');
+            router.replace('/parent/dashboard');
         } catch (err: any) {
             console.error(err);
             setError(
@@ -112,7 +112,7 @@ const RegistrationScreen = () => {
                 <Text className="text-gray-600">Already have an account? </Text>
                 <Text
                     className="text-blue-600 font-bold"
-                    onPress={() => router.replace('/login')}
+                    onPress={() => router.replace('/parent/login')}
                 >
                     Sign In
                 </Text>
