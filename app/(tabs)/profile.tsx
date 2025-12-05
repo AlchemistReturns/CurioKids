@@ -56,9 +56,9 @@ export default function Dashboard() {
 
   if (loading || role === null) {
     return (
-      <View className="flex-1 justify-center items-center bg-gray-100">
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text className="mt-2 text-gray-600">Loading Profile</Text>
+      <View className="flex-1 justify-center items-center">
+        <ActivityIndicator size="large" color="#F0E491" />
+        <Text className="mt-2 text-primary">Loading Profile</Text>
       </View>
     );
   }
@@ -74,7 +74,7 @@ export default function Dashboard() {
   // unknown role
   return (
     <View className="flex-1 justify-center items-center bg-gray-100 px-6">
-      <Text className="text-center text-gray-700 mb-4">
+      <Text className="text-center text-primary mb-4">
         Account role not assigned. Please contact support.
       </Text>
     </View>

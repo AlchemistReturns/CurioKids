@@ -1,60 +1,65 @@
-import { router } from 'expo-router';
-import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { router } from "expo-router";
+import React from "react";
+import { Text, TouchableOpacity, View } from "react-native";
 
 const AppIndexScreen = () => {
-
     const goToRegistration = () => {
-        router.push('/parent/registration');
+        router.push("/parent/registration");
     };
 
     const goToChildRegistration = () => {
-        router.push('/child/registration')
-    }
+        router.push("/child/registration");
+    };
 
     const goToLogin = () => {
-        router.push('/login')
-    }
+        router.push("/login");
+    };
 
     return (
-        <View className="flex-1 justify-center items-center px-6 bg-gray-100">
-            <Text className="text-4xl font-bold mb-2 text-gray-800">
+        <View className="flex-1 justify-center items-center px-6">
+            <Text className="text-4xl font-bold mb-2 text-primary">
                 Curiokids
             </Text>
 
-            <Text className="text-lg text-gray-600 mb-12 text-center">
+            <Text className="text-lg text-secondary mb-8 text-center">
                 Welcome to the learning platform!
             </Text>
 
             <TouchableOpacity
-                className="bg-blue-600 py-4 px-8 rounded-xl shadow-md min-w-[200px] mb-4"
+                className="bg-secondary py-4 px-8 rounded-xl shadow-md min-w-[200px] mb-8"
                 onPress={goToLogin}
             >
-                <Text className="text-white text-xl font-semibold text-center">
+                <Text className="text-base text-xl font-bold text-center">
                     Login
                 </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-                className="bg-blue-600 py-4 px-8 rounded-xl shadow-md min-w-[200px] mb-4"
-                onPress={goToRegistration}
-            >
-                <Text className="text-white text-xl font-semibold text-center">
-                    Parent Registration
-                </Text>
-            </TouchableOpacity>
+            <Text className="mb-4 text-3xl font-bold text-primary">
+                Register
+            </Text>
 
-            <TouchableOpacity
-                className="bg-blue-600 py-4 px-8 rounded-xl shadow-md min-w-[200px]"
-                onPress={goToChildRegistration}
-            >
-                <Text className="text-white text-xl font-semibold text-center">
-                    Child Registration
-                </Text>
-            </TouchableOpacity>
+            <View className="flex flex-row gap-8 justify-center items-center">
+                <TouchableOpacity
+                    className="bg-secondary py-4 px-8 rounded-xl shadow-md"
+                    onPress={goToRegistration}
+                >
+                    <Text className="text-base text-xl font-semibold text-center">
+                        Parent
+                    </Text>
+                </TouchableOpacity>
 
-            <Text className="absolute bottom-10 text-xs text-gray-400">
-                The entry point for your application.
+                <TouchableOpacity
+                    className="bg-secondary py-4 px-8 rounded-xl shadow-md"
+                    onPress={goToChildRegistration}
+                >
+                    <Text className="text-base text-xl font-semibold text-center">
+                        Child
+                    </Text>
+                </TouchableOpacity>
+            </View>
+
+            <Text className="absolute bottom-10 text-xs text-secondary">
+                All rights reserved
             </Text>
         </View>
     );

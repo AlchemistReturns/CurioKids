@@ -69,9 +69,9 @@ const ChildDashboardScreen = () => {
 
     if (loading) {
         return (
-            <View className="flex-1 justify-center items-center bg-gray-100">
-                <ActivityIndicator size="large" color="#007AFF" />
-                <Text className="mt-2 text-gray-600 text-base">
+            <View className="flex-1 justify-center items-center">
+                <ActivityIndicator size="large" color="#F0E491" />
+                <Text className="mt-2 text-primary text-base">
                     Checking authentication status...
                 </Text>
             </View>
@@ -81,34 +81,34 @@ const ChildDashboardScreen = () => {
     if (!user) return null;
 
     return (
-        <View className="flex-1 px-6 bg-gray-100 pt-20">
-            <Text className="text-2xl font-bold text-center mb-10 text-gray-800">
+        <View className="flex-1 px-6 pt-20">
+            <Text className="text-2xl font-bold text-center mb-10 text-primary">
                 Welcome to Your Dashboard
             </Text>
 
-            <View className="bg-white p-5 rounded-xl shadow-md mb-10">
-                <Text className="text-gray-500 text-base mb-1">
+            <View className="bg-ternary p-5 rounded-xl shadow-md mb-10">
+                <Text className="text-secondary text-base mb-1">
                     Authenticated User:
                 </Text>
 
-                <Text className="text-lg font-semibold text-blue-600 mb-2">
+                <Text className="text-lg font-semibold text-primary mb-2">
                     {user.email}
                 </Text>
 
-                <Text className="text-sm text-gray-500 font-mono">
+                <Text className="text-sm text-secondary font-mono">
                     Parent Uid: {linkKey ?? "Not set"}
                 </Text>
 
-                <Text className="text-sm text-gray-500 font-mono">
+                <Text className="text-sm text-secondary font-mono">
                     User Id: {user.uid}
                 </Text>
             </View>
 
-            <View className="rounded-lg overflow-hidden">
+            <View className="rounded-lg overflow-hidden bg-[#313647] mt-8 text-bold">
                 <Button
                     title="Sign Out"
                     onPress={handleSignOut}
-                    color="#FF3B30"
+                    color="#F0E491"
                 />
             </View>
         </View>

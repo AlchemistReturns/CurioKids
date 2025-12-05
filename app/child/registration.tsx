@@ -77,22 +77,22 @@ const ChildRegistrationScreen = () => {
   };
 
   return (
-    <View className="flex-1 justify-center px-6 bg-gray-100">
-      <Text className="text-3xl font-bold mb-8 text-center text-gray-800">Hey Kid!</Text>
+    <View className="flex-1 justify-center px-6">
+      <Text className="text-3xl font-bold mb-8 text-center text-primary">Hey Kid!</Text>
 
       <TextInput
-        className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white"
+        className="h-12 border border-primary rounded-lg px-4 mb-4"
         placeholder="Name"
-        placeholderTextColor="#AAA"
+        placeholderTextColor="#F0E491"
         value={name}
         onChangeText={setName}
         autoCapitalize="none"
       />
 
       <TextInput
-        className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white"
+        className="h-12 border border-primary rounded-lg px-4 mb-4"
         placeholder="Email"
-        placeholderTextColor="#AAA"
+        placeholderTextColor="#F0E491"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -100,35 +100,35 @@ const ChildRegistrationScreen = () => {
       />
 
       <TextInput
-        className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white"
+        className="h-12 border border-primary rounded-lg px-4 mb-4"
         placeholder="Password (min 6 characters)"
-        placeholderTextColor="#AAA"
+        placeholderTextColor="#F0E491"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
 
       <TextInput
-        className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white"
+        className="h-12 border border-primary rounded-lg px-4 mb-4"
         placeholder="Parent Key"
-        placeholderTextColor="#AAA"
+        placeholderTextColor="#F0E491"
         value={parentKey}
         onChangeText={setParentKey}
       />
 
-      {error ? <Text className="text-red-600 mb-4 text-center">{error}</Text> : null}
+      {error ? <Text className="text-primary mb-4 text-center">{error}</Text> : null}
 
       {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" className="my-2" />
+        <ActivityIndicator size="large" color="#F0E491" className="my-2" />
       ) : (
         <View className="rounded-lg overflow-hidden mb-4">
-          <Button title="Sign Up" onPress={handleSignUp} color="#007AFF" />
+          <Button title="Sign Up" onPress={handleSignUp} color="#F0E491" />
         </View>
       )}
 
       <View className="flex-row justify-center mt-5">
-        <Text className="text-gray-600">Already have an account? </Text>
-        <Text className="text-blue-600 font-bold" onPress={() => router.replace('/child/login')}>
+        <Text className="text-secondary">Already have an account? </Text>
+        <Text className="text-primary font-bold" onPress={() => router.replace('../login')}>
           Sign In
         </Text>
       </View>
