@@ -1,14 +1,30 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, ActivityIndicator } from 'react-native';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../config/firebase';
 import { router } from 'expo-router';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import React, { useState } from 'react';
+import { ActivityIndicator, Button, Text, TextInput, View } from 'react-native';
+import { auth, firestore } from '../config/firebase';
 
 const RegistrationScreen = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [name, setName] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+
+    async function generateUniqueKey() {
+        let key;
+        let isUnique = false;
+        while (!isUnique) {
+            key = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+            const q = query(collection(firestore, 'users'), where('linkKey', '==', key));
+            const snapshot = await getDocs(q);
+
+            isUnique = snapshot.empty;
+        }
+        return key;
+    }
 
     const handleSignUp = async () => {
         if (!email || !password) {
@@ -20,7 +36,18 @@ const RegistrationScreen = () => {
         setLoading(true);
 
         try {
-            await createUserWithEmailAndPassword(auth, email, password);
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const parentUid = userCredential.user.uid;
+            const linkKey = await generateUniqueKey();
+
+            await setDoc(doc(firestore, 'users', parentUid), {
+                role: 'parent',
+                email: email,
+                name: name,
+                linkKey: linkKey, 
+                createdAt: serverTimestamp(),
+            });
+
             router.replace('/dashboard');
         } catch (err: any) {
             console.error(err);
@@ -43,7 +70,17 @@ const RegistrationScreen = () => {
 
             <TextInput
                 className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white"
+                placeholder="Name"
+                placeholderTextColor="#AAA"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="none"
+            />
+
+            <TextInput
+                className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white"
                 placeholder="Email"
+                placeholderTextColor="#AAA"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -53,6 +90,7 @@ const RegistrationScreen = () => {
             <TextInput
                 className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white"
                 placeholder="Password (min 6 characters)"
+                placeholderTextColor="#AAA"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry

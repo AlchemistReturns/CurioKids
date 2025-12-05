@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Button, Text, TextInput, View } from 'react-native';
 import { auth } from '../config/firebase';
 
-const LoginScreen = () => {
+const ChildLoginScreen = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -22,7 +22,7 @@ const LoginScreen = () => {
         setLoading(true);
 
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user= await signInWithEmailAndPassword(auth, email, password);
             router.replace('/dashboard');
         } catch (err: any) {
             console.error(err);
@@ -42,11 +42,11 @@ const LoginScreen = () => {
     return (
         <View className="flex-1 justify-center px-6 bg-gray-100">
             <Text className="text-3xl font-bold mb-8 text-center text-gray-800">
-                Welcome Back
+                Welcome Back Kid
             </Text>
 
             <TextInput
-                className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white"
+                className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white text-gray-600"
                 placeholder="Email"
                 placeholderTextColor="#AAA"
                 value={email}
@@ -56,7 +56,7 @@ const LoginScreen = () => {
             />
 
             <TextInput
-                className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white"
+                className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white text-gray-600"
                 placeholder="Password"
                 placeholderTextColor="#AAA"
                 value={password}
@@ -91,4 +91,4 @@ const LoginScreen = () => {
     );
 };
 
-export default LoginScreen;
+export default ChildLoginScreen;
