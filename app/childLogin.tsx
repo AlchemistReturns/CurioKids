@@ -23,7 +23,7 @@ const ChildLoginScreen = () => {
 
         try {
             const user= await signInWithEmailAndPassword(auth, email, password);
-            router.replace('/dashboard');
+            router.replace("/childDashboard");
         } catch (err: any) {
             console.error(err);
             let errorMessage = err.message || "An unknown error occurred.";
@@ -82,7 +82,7 @@ const ChildLoginScreen = () => {
                 <Text className="text-gray-600">Don&#39;t have an account? </Text>
                 <Text
                     className="text-blue-600 font-bold"
-                    onPress={() => router.replace('/registration')}
+                    onPress={() => router.replace("/childRegistration")}
                 >
                     Sign Up
                 </Text>
