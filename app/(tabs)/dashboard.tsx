@@ -58,7 +58,7 @@ export default function Dashboard() {
     return (
       <View className="flex-1 justify-center items-center">
         <ActivityIndicator size="large" color="#BBC863" />
-        <Text className="mt-2 text-gray-600">Loading dashboard…</Text>
+        <Text className="mt-2 text-primary">Loading dashboard…</Text>
       </View>
     );
   }
@@ -74,7 +74,7 @@ export default function Dashboard() {
   // unknown role
   return (
     <View className="flex-1 justify-center items-center px-6">
-      <Text className="text-center text-gray-700 mb-4">
+      <Text className="text-center text-primary mb-4">
         Account role not assigned. Please contact support.
       </Text>
     </View>
