@@ -1,51 +1,82 @@
 import { router } from "expo-router";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Text, View } from "react-native";
 import { auth, firestore } from "../../config/firebase";
 
-export default function Profile() {
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [role, setRole] = useState(null);
+// import the pre-built dashboards
+import ChildProfile from "../child/profile";
+import ParentProfile from "../parent/profile";
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            if (currentUser) {
-                setUser(currentUser);
-            } else {
-                router.replace("/index");
-            }
-            setLoading(false);
-        });
+export default function Dashboard() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<string | null>(null);
 
-        return unsubscribe;
-    }, []);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        router.replace("/login");
+      }
+      setLoading(false);
+    });
 
-    useEffect(() => {
-        if (!user) return;
-        let cancelled = false;
-        (async () => {
-            try {
-                const snap = await getDoc(doc(firestore, "users", user.uid));
-                if (cancelled) return;
-                if (snap.exists()) {
-                    setRole((snap.data() as any).role ?? null);
-                } else {
-                    setRole(null);
-                }
-            } catch (e) {
-                console.error("Failed to load parent linkKey", e);
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, [user]);
+    return unsubscribe;
+  }, []);
 
-    if (role === "parent") {
-        return require("../parent/profile").default;
-    } else {
-        return require("../child/profile").default;
-    }
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const snap = await getDoc(doc(firestore, "users", user.uid));
+        if (cancelled) return;
+
+        if (snap.exists()) {
+          setRole((snap.data() as any).role ?? null);
+        } else {
+          // no profile for this account: sign out and send to login/registration
+          await signOut(auth);
+          router.replace("/"); // or "/login" depending on your flow
+        }
+      } catch (e) {
+        console.error("Failed to load user profile", e);
+        // fallback: sign out to avoid leaving user in undefined state
+        try { await signOut(auth); } catch {}
+        router.replace("/");
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [user]);
+
+  if (loading || role === null) {
+    return (
+      <View className="flex-1 justify-center items-center bg-gray-100">
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text className="mt-2 text-gray-600">Loading Profile</Text>
+      </View>
+    );
+  }
+
+  if (role === "parent") {
+    return <ParentProfile />;
+  }
+
+  if (role === "child") {
+    return <ChildProfile />;
+  }
+
+  // unknown role
+  return (
+    <View className="flex-1 justify-center items-center bg-gray-100 px-6">
+      <Text className="text-center text-gray-700 mb-4">
+        Account role not assigned. Please contact support.
+      </Text>
+    </View>
+  );
 }

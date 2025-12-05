@@ -40,20 +40,8 @@ const LoginScreen = () => {
         throw new Error('No user profile found. Please complete registration.');
       }
 
-      const data = userSnap.data() as any;
-      const role = (data?.role ?? '').toString();
+      router.replace('/(tabs)/dashboard');
 
-      // 3) Route based on role
-      if (role === 'parent') {
-        router.replace('/parent/dashboard');
-      } else if (role === 'child') {
-        // route to nested child dashboard folder
-        router.replace('/child/dashboard');
-      } else {
-        // Unknown role — sign out and show message
-        await auth.signOut();
-        throw new Error('Account role not assigned. Contact support.');
-      }
     } catch (err: any) {
       console.error(err);
       setError(normalizeError(err));
@@ -69,6 +57,7 @@ const LoginScreen = () => {
       <TextInput
         className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white text-gray-600"
         placeholder="Email"
+        placeholderTextColor="#AAA"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -78,6 +67,7 @@ const LoginScreen = () => {
       <TextInput
         className="h-12 border border-gray-300 rounded-lg px-4 mb-4 bg-white text-gray-600"
         placeholder="Password"
+        placeholderTextColor="#AAA"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
