@@ -2,18 +2,19 @@ import { router } from "expo-router";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 import { auth, firestore } from "../../config/firebase";
 
-// import the pre-built dashboards
+// Import the role-specific profiles
 import ChildProfile from "../child/profile";
 import ParentProfile from "../parent/profile";
 
-export default function Dashboard() {
+export default function ProfileWrapper() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
 
+  // 1. Monitor Auth State
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -21,12 +22,12 @@ export default function Dashboard() {
       } else {
         router.replace("/login");
       }
-      setLoading(false);
+      // Note: We don't set loading(false) here because we still need the role
     });
-
     return unsubscribe;
   }, []);
 
+  // 2. Fetch User Role
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -39,44 +40,54 @@ export default function Dashboard() {
         if (snap.exists()) {
           setRole((snap.data() as any).role ?? null);
         } else {
-          // no profile for this account: sign out and send to login/registration
+          // Valid auth but no DB profile? Force logout.
           await signOut(auth);
-          router.replace("/"); // or "/login" depending on your flow
+          router.replace("/login");
         }
       } catch (e) {
-        console.error("Failed to load user profile", e);
-        // fallback: sign out to avoid leaving user in undefined state
-        try { await signOut(auth); } catch {}
-        router.replace("/");
+        console.error("Profile load error:", e);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
 
     return () => { cancelled = true; };
   }, [user]);
 
-  if (loading || role === null) {
+  // 3. Loading State (Themed)
+  if (loading || !user) {
     return (
-      <View className="flex-1 justify-center items-center">
+      <View className="flex-1 justify-center items-center bg-base">
         <ActivityIndicator size="large" color="#F0E491" />
-        <Text className="mt-2 text-primary">Loading Profile</Text>
+        <Text className="mt-4 text-primary font-bold">Loading Profile...</Text>
       </View>
     );
   }
 
+  // 4. Render Role-Based Content
   if (role === "parent") {
-    return <ParentProfile />;
+    return <ParentProfile user={user} />;
   }
 
   if (role === "child") {
-    return <ChildProfile />;
+    return <ChildProfile user={user} />;
   }
 
-  // unknown role
+  // 5. Fallback for Unknown Role
   return (
-    <View className="flex-1 justify-center items-center bg-gray-100 px-6">
-      <Text className="text-center text-primary mb-4">
-        Account role not assigned. Please contact support.
+    <View className="flex-1 justify-center items-center bg-base px-6">
+      <Text className="text-center text-primary text-xl font-bold mb-4">
+        Profile Error
       </Text>
+      <Text className="text-secondary text-center mb-8">
+        We couldn't determine your account type.
+      </Text>
+      <TouchableOpacity 
+        onPress={() => signOut(auth).then(() => router.replace("/login"))}
+        className="bg-secondary/20 px-6 py-3 rounded-xl"
+      >
+        <Text className="text-primary font-bold">Sign Out</Text>
+      </TouchableOpacity>
     </View>
   );
 }
