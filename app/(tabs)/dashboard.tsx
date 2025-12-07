@@ -5,9 +5,9 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { auth, firestore } from "../../config/firebase";
 
-// import the pre-built dashboards
-import ChildDashboard from "../child/dashboard";
-import ParentDashboard from "../parent/dashboard";
+// Import the distinct dashboards
+import ChildDashboardScreen from "../child/dashboard";
+import ParentDashboardScreen from "../parent/dashboard";
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -21,7 +21,7 @@ export default function Dashboard() {
       } else {
         router.replace("/login");
       }
-      setLoading(false);
+      // Don't stop loading yet, we need the role
     });
 
     return unsubscribe;
@@ -37,17 +37,19 @@ export default function Dashboard() {
         if (cancelled) return;
 
         if (snap.exists()) {
-          setRole((snap.data() as any).role ?? null);
+          const userData = snap.data();
+          setRole(userData.role ?? null);
         } else {
-          // no profile for this account: sign out and send to login/registration
+          // No profile found
           await signOut(auth);
-          router.replace("/"); // or "/login" depending on your flow
+          router.replace("/");
         }
       } catch (e) {
         console.error("Failed to load user profile", e);
-        // fallback: sign out to avoid leaving user in undefined state
         try { await signOut(auth); } catch {}
         router.replace("/");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
 
@@ -56,26 +58,35 @@ export default function Dashboard() {
 
   if (loading || role === null) {
     return (
-      <View className="flex-1 justify-center items-center">
-        <ActivityIndicator size="large" color="#BBC863" />
-        <Text className="mt-2 text-primary">Loading dashboard…</Text>
+      <View className="flex-1 justify-center items-center bg-base">
+        <ActivityIndicator size="large" color="#F0E491" />
+        <Text className="mt-4 text-primary font-bold text-lg">Loading Curiokids...</Text>
       </View>
     );
   }
 
   if (role === "parent") {
-    return <ParentDashboard />;
+    return <ParentDashboardScreen />;
   }
 
   if (role === "child") {
-    return <ChildDashboard />;
+    return <ChildDashboardScreen />;
   }
 
-  // unknown role
+  // Fallback for unknown role
   return (
-    <View className="flex-1 justify-center items-center px-6">
-      <Text className="text-center text-primary mb-4">
-        Account role not assigned. Please contact support.
+    <View className="flex-1 justify-center items-center px-6 bg-base">
+      <Text className="text-center text-primary text-xl font-bold mb-4">
+        Account Role Error
+      </Text>
+      <Text className="text-secondary text-center">
+        Your account does not have a valid role assigned. Please contact support.
+      </Text>
+      <Text 
+        className="mt-8 text-white font-bold bg-secondary/50 px-6 py-3 rounded-xl overflow-hidden"
+        onPress={() => signOut(auth).then(() => router.replace("/login"))}
+      >
+        Sign Out
       </Text>
     </View>
   );
