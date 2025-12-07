@@ -10,7 +10,6 @@ import { auth, firestore } from "../../config/firebase";
 export default function ParentProfile({ user }: { user: User }) {
   const [childCount, setChildCount] = useState(0);
 
-  // Fetch count of linked children for the UI
   useEffect(() => {
     const fetchChildren = async () => {
       try {
@@ -27,7 +26,7 @@ export default function ParentProfile({ user }: { user: User }) {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      router.replace("/login"); 
+      router.replace("/login");
     } catch (error) {
       Alert.alert("Error", "Failed to sign out");
     }
@@ -49,43 +48,33 @@ export default function ParentProfile({ user }: { user: User }) {
   return (
     <SafeAreaView className="flex-1 bg-base" edges={['top']}>
       <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
-        
-        {/* Header */}
         <View className="items-center mt-6 mb-8">
           <View className="h-24 w-24 bg-ternary rounded-full justify-center items-center mb-4 border-2 border-primary shadow-lg">
             <Text className="text-primary text-4xl font-bold">
-                {user.email ? user.email[0].toUpperCase() : "P"}
+              {user.email ? user.email[0].toUpperCase() : "P"}
             </Text>
           </View>
           <Text className="text-primary text-2xl font-bold">Parent Account</Text>
           <Text className="text-secondary text-sm">{user.email}</Text>
-          <View className="bg-[#4A7A60] px-3 py-1 rounded-full mt-3 border border-secondary/30">
-            <Text className="text-white text-xs font-bold uppercase">Standard Plan</Text>
+        </View>
+
+        <View className="flex-row justify-between mb-8 bg-ternary/30 p-4 rounded-2xl">
+          <View className="items-center flex-1 border-r border-base/50">
+            <Text className="text-primary text-xl font-bold">{childCount}</Text>
+            <Text className="text-secondary text-xs">Children</Text>
+          </View>
+          <View className="items-center flex-1">
+            <Text className="text-primary text-xl font-bold">Active</Text>
+            <Text className="text-secondary text-xs">Status</Text>
           </View>
         </View>
 
-        {/* Stats Row */}
-        <View className="flex-row justify-between mb-8 bg-ternary/30 p-4 rounded-2xl">
-            <View className="items-center flex-1 border-r border-base/50">
-                <Text className="text-primary text-xl font-bold">{childCount}</Text>
-                <Text className="text-secondary text-xs">Children</Text>
-            </View>
-            <View className="items-center flex-1">
-                <Text className="text-primary text-xl font-bold">Active</Text>
-                <Text className="text-secondary text-xs">Status</Text>
-            </View>
-        </View>
-
-        {/* Settings List */}
         <Text className="text-primary text-lg font-bold mb-4">Account Settings</Text>
         <View className="mb-8">
           <SettingItem icon="notifications-outline" label="Notifications" subtext="Email & Push alerts" />
-          <SettingItem icon="card-outline" label="Subscription" subtext="Manage billing" />
           <SettingItem icon="lock-closed-outline" label="Security" subtext="Change password" />
-          <SettingItem icon="help-circle-outline" label="Support" subtext="Contact us" />
         </View>
 
-        {/* Logout Button */}
         <TouchableOpacity 
           onPress={handleSignOut}
           className="flex-row justify-center items-center bg-[#8B4513] py-4 rounded-xl mb-10 shadow-md active:opacity-90"
@@ -93,7 +82,6 @@ export default function ParentProfile({ user }: { user: User }) {
           <Ionicons name="log-out-outline" size={24} color="#F0E491" style={{ marginRight: 8 }} />
           <Text className="text-primary font-bold text-lg">Log Out</Text>
         </TouchableOpacity>
-
       </ScrollView>
     </SafeAreaView>
   );
