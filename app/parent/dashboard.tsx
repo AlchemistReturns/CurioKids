@@ -128,11 +128,11 @@ const ParentDashboardScreen = () => {
         {/* Header */}
         <View className="flex-row justify-between items-center mt-4 mb-8">
           <View>
-            <Text className="text-secondary text-lg font-medium">Dashboard</Text>
-            <Text className="text-primary text-3xl font-bold">Parent View</Text>
+            
+            <Text className="text-primary text-3xl font-bold">Dashboard</Text>
           </View>
-          <TouchableOpacity onPress={handleSignOut} className="bg-ternary p-2 rounded-full border border-primary/20">
-            <Ionicons name="log-out-outline" size={24} color="#F0E491" />
+          <TouchableOpacity onPress={handleSignOut} className="bg-[#D9534F] p-2 rounded-full">
+            <Ionicons name="log-out-outline" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
@@ -140,50 +140,48 @@ const ParentDashboardScreen = () => {
         <TouchableOpacity 
             onPress={copyToClipboard}
             activeOpacity={0.7}
-            className="bg-ternary rounded-3xl p-6 mb-8 shadow-lg border-2 border-primary/10"
+            className="bg-secondary rounded-3xl p-6 mb-8 shadow-lg border-2 border-primary/10"
         >
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-secondary text-sm uppercase font-bold tracking-wider">Family Linking Code</Text>
-            <View className="bg-base/30 p-1.5 rounded-lg">
-                <Ionicons name="copy-outline" size={16} color="#BBC863" />
-            </View>
-          </View>
+          
+          <Text className="text-primary text-sm uppercase font-bold tracking-wider text-center">Family Linking Code</Text>
           <Text className="text-primary text-4xl font-mono font-bold tracking-widest text-center my-4">
             {linkKey ?? "..."}
           </Text>
-          <Text className="text-white/60 text-xs text-center">
-            Tap to copy & share this code with your child
-          </Text>
+          <View className="flex-row justify-center items-center">
+            <View className="bg-base/30 p-1.5 rounded-lg">
+                <Ionicons name="copy-outline" size={20} color="#3f51b5" />
+            </View>
+          </View>
         </TouchableOpacity>
 
         {/* Children List */}
-        <Text className="text-primary text-xl font-bold mb-4">My Children</Text>
+        <Text className="text-primary text-2xl font-bold mb-4">My Children</Text>
         
         {childrenLoading ? (
-          <ActivityIndicator size="large" color="#F0E491" className="mb-8" />
+          <ActivityIndicator size="large" color="#3f51b5" className="mb-8" />
         ) : children.length === 0 ? (
-          <View className="bg-ternary/50 p-6 rounded-2xl items-center mb-8 border border-dashed border-secondary/50">
-            <Ionicons name="happy-outline" size={40} color="#BBC863" className="mb-2"/>
+          <View className="bg-primary p-6 rounded-2xl items-center mb-8">
+            <Ionicons name="happy-outline" size={40} color="#edf0f7" className="mb-2"/>
             <Text className="text-secondary">No children connected yet.</Text>
           </View>
         ) : (
           <View className="mb-8">
             {children.map((child) => (
-              <View key={child.id} className="bg-ternary p-4 rounded-2xl mb-3 border border-ternary/50">
+              <View key={child.id} className="bg-primary p-6 rounded-2xl mb-3">
                 <View className="flex-row items-center mb-3">
                     <View className="bg-base h-12 w-12 rounded-full items-center justify-center mr-4 border border-secondary">
                         <Text className="text-primary font-bold text-lg">{(child.name?.[0] || child.email?.[0] || "C").toUpperCase()}</Text>
                     </View>
                     <View className="flex-1">
-                        <Text className="text-white font-bold text-lg">{child.name ?? "Unnamed Child"}</Text>
-                        <Text className="text-secondary text-xs">{child.email}</Text>
+                        <Text className="text-white font-bold text-xl">{(child.name ?? "Unnamed Child").toUpperCase()}</Text>
+                        <Text className="text-secondary text-sm">{child.email}</Text>
                     </View>
                 </View>
                 
                 {/* Child Stats Grid */}
                 <View className="flex-row bg-base/30 rounded-xl p-3 justify-between">
                     <View className="items-center flex-1 border-r border-ternary">
-                        <Text className="text-primary font-bold text-lg">{child.totalPoints ?? 0}</Text>
+                        <Text className="text-white font-bold text-lg">{child.totalPoints ?? 0}</Text>
                         <Text className="text-secondary text-[10px] uppercase">Points</Text>
                     </View>
                     <View className="items-center flex-1">
@@ -199,11 +197,10 @@ const ParentDashboardScreen = () => {
         {/* Quick Actions */}
         <Text className="text-primary text-xl font-bold mb-4">Actions</Text>
         <View className="flex-row flex-wrap justify-between gap-y-4 mb-10">
-          <TouchableOpacity className="bg-[#4A7A60] w-full p-4 rounded-2xl flex-row items-center justify-center">
-            <Ionicons name="bar-chart-outline" size={28} color="#BBC863" className="mr-3" />
+          <TouchableOpacity className="bg-primary w-full p-4 rounded-2xl flex-row items-center">
+            <Ionicons name="bar-chart-outline" size={28} color="#ffffff" className="mr-3" />
             <View>
                 <Text className="text-white font-bold text-lg">View Detailed Reports</Text>
-                <Text className="text-secondary text-xs">Analytics & Progress</Text>
             </View>
           </TouchableOpacity>
         </View>

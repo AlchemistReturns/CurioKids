@@ -35,16 +35,16 @@ export default function ParentProfile({ user }: { user: User }) {
   const SettingItem = ({ icon, label, subtext, onPress }: { icon: any, label: string, subtext?: string, onPress?: () => void }) => (
     <TouchableOpacity 
       onPress={onPress}
-      className="flex-row items-center bg-ternary/20 p-4 rounded-2xl mb-3 border border-ternary/50 active:bg-ternary/40"
+      className="flex-row items-center bg-primary/20 p-4 rounded-2xl mb-3 border border-primary active:bg-primary"
     >
       <View className="bg-base p-2 rounded-full mr-4">
-        <Ionicons name={icon} size={20} color="#F0E491" />
+        <Ionicons name={icon} size={20} color="#3f51b5" />
       </View>
       <View className="flex-1">
-        <Text className="text-white text-base font-semibold">{label}</Text>
-        {subtext && <Text className="text-secondary text-xs">{subtext}</Text>}
+        <Text className="text-primary text-base font-semibold">{label}</Text>
+        {/* {subtext && <Text className="text-primary text-xs">{subtext}</Text>} */}
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#BBC863" />
+      <Ionicons name="chevron-forward" size={20} color="#3f51b5" />
     </TouchableOpacity>
   );
 
@@ -52,23 +52,23 @@ export default function ParentProfile({ user }: { user: User }) {
     <SafeAreaView className="flex-1 bg-base" edges={['top']}>
       <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
         <View className="items-center mt-6 mb-8">
-          <View className="h-24 w-24 bg-ternary rounded-full justify-center items-center mb-4 border-2 border-primary shadow-lg">
-            <Text className="text-primary text-4xl font-bold">
+          <View className="h-24 w-24 bg-primary rounded-full justify-center items-center mb-4 shadow-lg">
+            <Text className="text-white text-4xl font-bold">
               {user.email ? user.email[0].toUpperCase() : "P"}
             </Text>
           </View>
           <Text className="text-primary text-2xl font-bold">Parent Account</Text>
-          <Text className="text-secondary text-sm">{user.email}</Text>
+          <Text className="text-primary text-sm">{user.email}</Text>
         </View>
 
-        <View className="flex-row justify-between mb-8 bg-ternary/30 p-4 rounded-2xl">
+        <View className="flex-row justify-between mb-8 bg-primary p-4 rounded-2xl">
           <View className="items-center flex-1 border-r border-base/50">
-            <Text className="text-primary text-xl font-bold">{childCount}</Text>
-            <Text className="text-secondary text-xs">Children</Text>
+            <Text className="text-white text-xl font-bold">{childCount}</Text>
+            <Text className="text-white text-xs">Children</Text>
           </View>
           <View className="items-center flex-1">
-            <Text className="text-primary text-xl font-bold">Active</Text>
-            <Text className="text-secondary text-xs">Status</Text>
+            <Text className="text-white text-xl font-bold">Active</Text>
+            <Text className="text-white text-xs">Status</Text>
           </View>
         </View>
 
@@ -85,10 +85,10 @@ export default function ParentProfile({ user }: { user: User }) {
 
         <TouchableOpacity 
           onPress={handleSignOut}
-          className="flex-row justify-center items-center bg-[#8B4513] py-4 rounded-xl mb-10 shadow-md active:opacity-90"
+          className="flex-row bg-[#D9534F] justify-center items-center py-4 rounded-xl mb-10"
         >
-          <Ionicons name="log-out-outline" size={24} color="#F0E491" style={{ marginRight: 8 }} />
-          <Text className="text-primary font-bold text-lg">Log Out</Text>
+          <Ionicons name="log-out-outline" size={24} color="#fff" style={{ marginRight: 8 }} />
+          <Text className="text-white font-bold text-lg">Log Out</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

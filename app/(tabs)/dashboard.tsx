@@ -59,8 +59,8 @@ export default function Dashboard() {
   if (loading || role === null) {
     return (
       <View className="flex-1 justify-center items-center bg-base">
-        <ActivityIndicator size="large" color="#F0E491" />
-        <Text className="mt-4 text-primary font-bold text-lg">Loading Curiokids...</Text>
+        <ActivityIndicator size="large" color="#3f51b5" />
+        <Text className="mt-4 text-primary font-bold text-lg">Loading...</Text>
       </View>
     );
   }
@@ -79,7 +79,7 @@ export default function Dashboard() {
       <Text className="text-center text-primary text-xl font-bold mb-4">
         Account Role Error
       </Text>
-      <Text className="text-secondary text-center">
+      <Text className="text-primary text-center">
         Your account does not have a valid role assigned. Please contact support.
       </Text>
       <Text 

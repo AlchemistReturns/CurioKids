@@ -90,20 +90,20 @@ export default function ChangePassword() {
         <View className="flex-row items-center mt-4 mb-8">
           <TouchableOpacity 
             onPress={() => router.back()}
-            className="mr-4 p-2 bg-ternary/20 rounded-full"
+            className="mr-4 p-2 bg-primary rounded-full"
           >
-            <Ionicons name="arrow-back" size={24} color="#F0E491" />
+            <Ionicons name="arrow-back" size={24} color="#ffffff" />
           </TouchableOpacity>
           <Text className="text-primary text-2xl font-bold">Change Password</Text>
         </View>
 
         {/* Info Card */}
-        <View className="bg-ternary/20 p-4 rounded-2xl mb-6 border border-ternary/50">
+        <View className="bg-primary p-4 rounded-2xl mb-6">
           <View className="flex-row items-center mb-2">
-            <Ionicons name="information-circle" size={24} color="#BBC863" />
-            <Text className="text-primary text-base font-semibold ml-2">Security Tips</Text>
+            <Ionicons name="information-circle" size={24} color="#ffffff" />
+            <Text className="text-white text-base font-semibold ml-2">Security Tips</Text>
           </View>
-          <Text className="text-secondary text-sm">
+          <Text className="text-white text-sm">
             • Use at least 6 characters{"\n"}
             • Avoid common words{"\n"}
             • Don't reuse old passwords
@@ -113,14 +113,14 @@ export default function ChangePassword() {
         {/* Current Password Field */}
         <View className="mb-4">
           <Text className="text-primary text-sm font-semibold mb-2">Current Password</Text>
-          <View className="flex-row items-center bg-ternary/20 rounded-xl border border-ternary/50">
+          <View className="flex-row items-center  rounded-xl border border-primary/20">
             <View className="pl-4">
-              <Ionicons name="lock-closed-outline" size={20} color="#BBC863" />
+              <Ionicons name="lock-closed-outline" size={20} color="#3f51b5" />
             </View>
             <TextInput
-              className="flex-1 h-14 px-4 text-white text-base"
+              className="flex-1 h-14 px-4 text-primary"
               placeholder="Enter current password"
-              placeholderTextColor="#BBC863"
+              placeholderTextColor="#aaa"
               value={currentPassword}
               onChangeText={setCurrentPassword}
               secureTextEntry={!showCurrentPassword}
@@ -133,7 +133,7 @@ export default function ChangePassword() {
               <Ionicons 
                 name={showCurrentPassword ? "eye-off-outline" : "eye-outline"} 
                 size={20} 
-                color="#BBC863" 
+                color="#3f51b5" 
               />
             </TouchableOpacity>
           </View>
@@ -142,14 +142,14 @@ export default function ChangePassword() {
         {/* New Password Field */}
         <View className="mb-4">
           <Text className="text-primary text-sm font-semibold mb-2">New Password</Text>
-          <View className="flex-row items-center bg-ternary/20 rounded-xl border border-ternary/50">
+          <View className="flex-row items-center  rounded-xl border border-primary/20">
             <View className="pl-4">
-              <Ionicons name="lock-closed-outline" size={20} color="#BBC863" />
+              <Ionicons name="lock-closed-outline" size={20} color="#3f51bf" />
             </View>
             <TextInput
-              className="flex-1 h-14 px-4 text-white text-base"
+              className="flex-1 h-14 px-4 text-primary"
               placeholder="Enter new password"
-              placeholderTextColor="#BBC863"
+              placeholderTextColor="#aaa"
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry={!showNewPassword}
@@ -162,7 +162,7 @@ export default function ChangePassword() {
               <Ionicons 
                 name={showNewPassword ? "eye-off-outline" : "eye-outline"} 
                 size={20} 
-                color="#BBC863" 
+                color="#3f51bf" 
               />
             </TouchableOpacity>
           </View>
@@ -171,14 +171,14 @@ export default function ChangePassword() {
         {/* Confirm Password Field */}
         <View className="mb-8">
           <Text className="text-primary text-sm font-semibold mb-2">Confirm New Password</Text>
-          <View className="flex-row items-center bg-ternary/20 rounded-xl border border-ternary/50">
+          <View className="flex-row items-center  rounded-xl border border-primary/20">
             <View className="pl-4">
-              <Ionicons name="lock-closed-outline" size={20} color="#BBC863" />
+              <Ionicons name="lock-closed-outline" size={20} color="#3f51bf" />
             </View>
             <TextInput
-              className="flex-1 h-14 px-4 text-white text-base"
+              className="flex-1 h-14 px-4 text-primary"
               placeholder="Re-enter new password"
-              placeholderTextColor="#BBC863"
+              placeholderTextColor="#aaa"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry={!showConfirmPassword}
@@ -191,7 +191,7 @@ export default function ChangePassword() {
               <Ionicons 
                 name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} 
                 size={20} 
-                color="#BBC863" 
+                color="#3f51bf" 
               />
             </TouchableOpacity>
           </View>
@@ -204,7 +204,7 @@ export default function ChangePassword() {
           className="bg-primary py-4 rounded-xl mb-4 shadow-md active:opacity-90"
         >
           {loading ? (
-            <ActivityIndicator size="small" color="#2B1810" />
+            <ActivityIndicator size="small" color="#fff" />
           ) : (
             <Text className="text-base font-bold text-center text-lg">Change Password</Text>
           )}
@@ -213,9 +213,9 @@ export default function ChangePassword() {
         {/* Cancel Button */}
         <TouchableOpacity
           onPress={() => router.back()}
-          className="bg-ternary/20 py-4 rounded-xl mb-10 border border-ternary/50"
+          className=" py-4 rounded-xl mb-10 border border-primary/20"
         >
-          <Text className="text-secondary font-semibold text-center text-base">Cancel</Text>
+          <Text className="text-primary font-semibold text-center text-md">Cancel</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

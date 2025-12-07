@@ -17,48 +17,53 @@ const AppIndexScreen = () => {
 
     return (
         <View className="flex-1 justify-center items-center px-6">
-            <Text className="text-4xl font-bold mb-2 text-primary">
-                Curiokids
+
+            <Text className="text-lg mb-12 text-center bg-orange-200 p-4 rounded-full text-orange-500 font-bold">
+                Learning made fun and effective
             </Text>
 
-            <Text className="text-lg text-secondary mb-8 text-center">
-                Welcome to the learning platform!
+            <Text className="text-6xl font-bold mb-8 text-center text-primary">
+                Unlock Your Child's Potential
+            </Text>
+
+            <Text className="text-xl mb-12 text-center">
+                CurioKids is a gamified learning app that uses engaging lessons to teach skills, featuring AI support tutor and parental dashboard for monitoring progress.
             </Text>
 
             <TouchableOpacity
-                className="bg-secondary py-4 px-8 rounded-xl shadow-md min-w-[200px] mb-8"
+                className="bg-secondary py-4 px-8 rounded-xl w-full mb-4"
                 onPress={goToLogin}
             >
-                <Text className="text-base text-xl font-bold text-center">
-                    Login
+                <Text className="text-primary text-3xl font-bold text-center">
+                    Get Started
                 </Text>
             </TouchableOpacity>
 
-            <Text className="mb-4 text-3xl font-bold text-primary">
+            {/* <Text className="mb-4 text-3xl font-bold text-primary">
                 Register
-            </Text>
+            </Text> */}
 
-            <View className="flex flex-row gap-8 justify-center items-center">
+            <View className="flex flex-row justify-between items-center w-full bg-white rounded-xl p-1">
                 <TouchableOpacity
-                    className="bg-secondary py-4 px-8 rounded-xl shadow-md"
+                    className="bg-base py-4 px-8 rounded-xl"
                     onPress={goToRegistration}
                 >
-                    <Text className="text-base text-xl font-semibold text-center">
-                        Parent
+                    <Text className="text-primary text-xl font-semibold text-center">
+                        Parent Signup
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    className="bg-secondary py-4 px-8 rounded-xl shadow-md"
+                    className="bg-white py-4 px-8 rounded-xl"
                     onPress={goToChildRegistration}
                 >
-                    <Text className="text-base text-xl font-semibold text-center">
-                        Child
+                    <Text className="text-primary text-xl font-semibold text-center">
+                        Child Signup
                     </Text>
                 </TouchableOpacity>
             </View>
 
-            <Text className="absolute bottom-10 text-xs text-secondary">
+            <Text className="absolute bottom-10 text-xs text-primary">
                 All rights reserved
             </Text>
         </View>

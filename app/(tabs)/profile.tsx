@@ -58,7 +58,7 @@ export default function ProfileWrapper() {
   if (loading || !user) {
     return (
       <View className="flex-1 justify-center items-center bg-base">
-        <ActivityIndicator size="large" color="#F0E491" />
+        <ActivityIndicator size="large" color="#3f51b5" />
         <Text className="mt-4 text-primary font-bold">Loading Profile...</Text>
       </View>
     );
@@ -79,7 +79,7 @@ export default function ProfileWrapper() {
       <Text className="text-center text-primary text-xl font-bold mb-4">
         Profile Error
       </Text>
-      <Text className="text-secondary text-center mb-8">
+      <Text className="text-primary text-center mb-8">
         We couldn't determine your account type.
       </Text>
       <TouchableOpacity 

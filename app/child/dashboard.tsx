@@ -71,17 +71,16 @@ export default function ChildDashboardScreen() {
         {/* Header */}
         <View className="flex-row justify-between items-center mt-6 mb-10">
           <View className="flex-row items-center">
-            <View className="h-14 w-14 bg-ternary rounded-full justify-center items-center border-2 border-primary mr-4">
+            <View className="h-14 w-14 bg-primary rounded-full justify-center items-center border-2 border-primary mr-4">
                <Ionicons name="happy" size={32} color="#F0E491" />
             </View>
             <View>
-              <Text className="text-secondary font-bold text-lg">Welcome back,</Text>
-              <Text className="text-primary text-3xl font-extrabold">{childName}!</Text>
+              <Text className="text-primary font-bold text-2xl">Welcome back!</Text>
             </View>
           </View>
           
-          <TouchableOpacity onPress={handleSignOut} className="bg-secondary/20 p-2 rounded-full border border-secondary">
-             <Ionicons name="log-out-outline" size={24} color="#F0E491" />
+          <TouchableOpacity onPress={handleSignOut} className="bg-[#D9534F] p-2 rounded-full">
+             <Ionicons name="log-out-outline" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
@@ -90,10 +89,10 @@ export default function ChildDashboardScreen() {
           className="bg-primary h-48 rounded-3xl justify-center items-center mb-8 shadow-lg shadow-black/50"
           onPress={() => router.push("/(tabs)/courses")}
         >
-          <View className="bg-[#E0D480] p-4 rounded-full mb-2">
-            <Ionicons name="play" size={48} color="#31694E" />
+          <View className="bg-primary p-1 rounded-full mb-2">
+            <Ionicons name="play" size={48} color="#fff" />
           </View>
-          <Text className="text-base text-3xl font-black uppercase tracking-widest">Start Playing</Text>
+          <Text className="text-white text-2xl font-black uppercase tracking-widest">Fun with Numbers</Text>
           <Text className="text-base/70 font-semibold">Continue Learning</Text>
         </TouchableOpacity>
 
@@ -101,39 +100,36 @@ export default function ChildDashboardScreen() {
         <View className="flex-row justify-between mb-8">
           
           {/* Points Card */}
-          <View className="bg-ternary w-[31%] p-3 rounded-2xl items-center justify-center border border-primary/20">
+          <View className="bg-primary w-[31%] p-3 rounded-2xl items-center justify-center">
             <Ionicons name="trophy" size={28} color="#F0E491" />
             <Text className="text-white text-xl font-bold mt-1">{totalPoints}</Text>
-            <Text className="text-secondary text-[10px] font-bold uppercase">Points</Text>
           </View>
 
           {/* Stars Card */}
-          <View className="bg-ternary w-[31%] p-3 rounded-2xl items-center justify-center border border-primary/20">
+          <View className="bg-primary w-[31%] p-3 rounded-2xl items-center justify-center">
             <Ionicons name="star" size={28} color="#F0E491" />
             <Text className="text-white text-xl font-bold mt-1">{stars}</Text>
-            <Text className="text-secondary text-[10px] font-bold uppercase">Stars</Text>
           </View>
 
           {/* Streak Card */}
-          <View className="bg-ternary w-[31%] p-3 rounded-2xl items-center justify-center border border-primary/20">
+          <View className="bg-primary w-[31%] p-3 rounded-2xl items-center justify-center">
             <Ionicons name="flame" size={28} color="#F0E491" />
             <Text className="text-white text-xl font-bold mt-1">{streak}</Text>
-            <Text className="text-secondary text-[10px] font-bold uppercase">Days</Text>
           </View>
 
         </View>
 
         {/* Daily Mission */}
         <Text className="text-primary text-xl font-bold mb-4">Today's Mission</Text>
-        <TouchableOpacity className="bg-[#4A7A60] p-5 rounded-2xl flex-row items-center mb-8 border-2 border-dashed border-secondary/30">
-          <View className="bg-secondary/20 h-12 w-12 rounded-full justify-center items-center mr-4">
-            <Ionicons name="rocket" size={24} color="#BBC863" />
+        <TouchableOpacity className="bg-primary p-5 rounded-2xl flex-row items-center mb-8">
+          <View className="bg-secondary/40 h-12 w-12 rounded-full justify-center items-center mr-4">
+            <Ionicons name="rocket" size={24} color="#F0E491" />
           </View>
           <View className="flex-1">
             <Text className="text-white font-bold text-lg">Complete a Lesson</Text>
             <Text className="text-secondary text-sm">Reward: +10 Stars</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color="#BBC863" />
+          <Ionicons name="chevron-forward" size={24} color="#F0E491" />
         </TouchableOpacity>
 
       </ScrollView>

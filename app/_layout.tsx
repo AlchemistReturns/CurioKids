@@ -8,7 +8,7 @@ export default function RootLayout() {
             screenOptions={{
                 headerShown: false,
                 contentStyle: {
-                    backgroundColor: "#31694E",
+                    backgroundColor: "#edf0f7",
                 },
             }}
         />

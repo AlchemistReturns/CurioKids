@@ -107,27 +107,23 @@ export default function Leaderboard() {
     return (
         <View 
             className={`flex-row items-center p-4 mx-4 rounded-2xl shadow-sm ${
-                isMe ? 'bg-primary/20 border-2 border-primary' : 'bg-ternary border border-secondary/30'
+                isMe ? 'bg-primary' : 'bg-primary'
             } ${isFooter ? 'mt-0' : 'mb-3'}`}
         >
             <View 
-                className="w-10 h-10 justify-center items-center rounded-full mr-4 border-2"
-                style={{ 
-                    backgroundColor: index < 3 && !isFooter ? 'rgba(0,0,0,0.2)' : 'transparent',
-                    borderColor: getRankColor(index)
-                }}
+                className="w-10 h-10 justify-center items-center rounded-full mr-4 border border-secondary"
             >
                 {index < 3 && !isFooter ? (
                     <Ionicons name="trophy" size={18} color={getRankColor(index)} />
                 ) : (
-                    <Text className={isMe ? "text-primary font-bold text-lg" : "text-secondary font-bold text-lg"}>
+                    <Text className={isMe ? "text-white font-bold text-lg" : "text-secondary font-bold text-lg"}>
                         {item.rank ? item.rank : index + 1}
                     </Text>
                 )}
             </View>
 
             <View className="flex-1">
-                <Text className={`font-bold text-lg ${isMe ? 'text-primary' : 'text-white'}`}>
+                <Text className={`font-bold text-lg ${isMe ? 'text-white' : 'text-white'}`}>
                     {item.name} {isMe && "(You)"}
                 </Text>
                 {/* Show subjects breakdown */}
@@ -140,7 +136,7 @@ export default function Leaderboard() {
             </View>
 
             <View className="items-end">
-                <Text className="text-primary font-black text-2xl">{item.totalPoints}</Text>
+                <Text className="text-white font-black text-2xl">{item.totalPoints}</Text>
                 <Text className="text-secondary text-[10px] font-bold uppercase tracking-widest">Total</Text>
             </View>
         </View>
@@ -150,8 +146,8 @@ export default function Leaderboard() {
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center bg-base">
-        <ActivityIndicator size="large" color="#F0E491" />
-        <Text className="text-secondary mt-4 font-medium">{statusMessage}</Text>
+        <ActivityIndicator size="large" color="#3f51b5" />
+        <Text className="text-primary mt-4 font-medium">{statusMessage}</Text>
       </View>
     );
   }
@@ -160,7 +156,7 @@ export default function Leaderboard() {
     <SafeAreaView className="flex-1 bg-base" edges={['top']}>
       <View className="pt-4 pb-6">
         <Text className="text-center text-3xl font-black text-primary mb-2">Leaderboard</Text>
-        <Text className="text-center text-secondary text-sm uppercase tracking-widest mb-2">Top 20 Scholars</Text>
+        <Text className="text-center text-primary text-sm uppercase tracking-widest mb-2">Top 20 Scholars</Text>
       </View>
 
       <FlatList
@@ -172,7 +168,7 @@ export default function Leaderboard() {
         ListEmptyComponent={
           <View className="items-center justify-center mt-20 opacity-50">
             <Ionicons name="telescope-outline" size={64} color="#BBC863" />
-            <Text className="text-center text-secondary mt-4 text-lg">No scores yet!</Text>
+            <Text className="text-center text-primary mt-4 text-lg">No scores yet!</Text>
           </View>
         }
       />
