@@ -32,8 +32,11 @@ export default function ParentProfile({ user }: { user: User }) {
     }
   };
 
-  const SettingItem = ({ icon, label, subtext }: { icon: any, label: string, subtext?: string }) => (
-    <TouchableOpacity className="flex-row items-center bg-ternary/20 p-4 rounded-2xl mb-3 border border-ternary/50 active:bg-ternary/40">
+  const SettingItem = ({ icon, label, subtext, onPress }: { icon: any, label: string, subtext?: string, onPress?: () => void }) => (
+    <TouchableOpacity 
+      onPress={onPress}
+      className="flex-row items-center bg-ternary/20 p-4 rounded-2xl mb-3 border border-ternary/50 active:bg-ternary/40"
+    >
       <View className="bg-base p-2 rounded-full mr-4">
         <Ionicons name={icon} size={20} color="#F0E491" />
       </View>
@@ -72,7 +75,12 @@ export default function ParentProfile({ user }: { user: User }) {
         <Text className="text-primary text-lg font-bold mb-4">Account Settings</Text>
         <View className="mb-8">
           <SettingItem icon="notifications-outline" label="Notifications" subtext="Email & Push alerts" />
-          <SettingItem icon="lock-closed-outline" label="Security" subtext="Change password" />
+          <SettingItem 
+            icon="lock-closed-outline" 
+            label="Security" 
+            subtext="Change password" 
+            onPress={() => router.push("/parent/change-password")}
+          />
         </View>
 
         <TouchableOpacity 
