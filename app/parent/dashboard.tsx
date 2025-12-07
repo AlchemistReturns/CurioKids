@@ -1,13 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from 'expo-clipboard'; // Make sure to install this
 import { router } from "expo-router";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import {
-    collection,
-    doc,
-    getDoc,
-    onSnapshot,
-    query,
-    where,
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  where,
 } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
@@ -73,6 +74,14 @@ const ParentDashboardScreen = () => {
     }
   };
 
+  // Logic to copy the code
+  const copyToClipboard = async () => {
+    if (linkKey) {
+        await Clipboard.setStringAsync(linkKey);
+        Alert.alert("Copied!", "Linking code copied to clipboard.");
+    }
+  };
+
   if (!user) return <View className="flex-1 bg-base" />;
 
   return (
@@ -90,19 +99,25 @@ const ParentDashboardScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Joining Code Card */}
-        <View className="bg-ternary rounded-3xl p-6 mb-8 shadow-lg border-2 border-primary/10">
+        {/* Joining Code Card (Clickable) */}
+        <TouchableOpacity 
+            onPress={copyToClipboard}
+            activeOpacity={0.7}
+            className="bg-ternary rounded-3xl p-6 mb-8 shadow-lg border-2 border-primary/10"
+        >
           <View className="flex-row justify-between items-center mb-2">
             <Text className="text-secondary text-sm uppercase font-bold tracking-wider">Family Linking Code</Text>
-            <Ionicons name="link" size={20} color="#BBC863" />
+            <View className="bg-base/30 p-1.5 rounded-lg">
+                <Ionicons name="copy-outline" size={16} color="#BBC863" />
+            </View>
           </View>
-          <Text className="text-primary text-4xl font-mono font-bold tracking-widest text-center my-2">
+          <Text className="text-primary text-4xl font-mono font-bold tracking-widest text-center my-4">
             {linkKey ?? "..."}
           </Text>
           <Text className="text-white/60 text-xs text-center">
-            Share this code with your child to link their account.
+            Tap to copy & share this code with your child
           </Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Children List */}
         <Text className="text-primary text-xl font-bold mb-4">My Children</Text>
@@ -131,18 +146,19 @@ const ParentDashboardScreen = () => {
           </View>
         )}
 
-        {/* Quick Actions */}
+        {/* Quick Actions (Updated) */}
         <Text className="text-primary text-xl font-bold mb-4">Actions</Text>
         <View className="flex-row flex-wrap justify-between gap-y-4 mb-10">
-          <TouchableOpacity className="bg-[#4A7A60] w-[48%] p-4 rounded-2xl items-start">
-            <Ionicons name="person-add-outline" size={28} color="#BBC863" className="mb-2" />
-            <Text className="text-white font-bold text-lg">Add Child</Text>
+          
+          {/* Reports Button is now full width since "Add Child" is gone */}
+          <TouchableOpacity className="bg-[#4A7A60] w-full p-4 rounded-2xl flex-row items-center justify-center">
+            <Ionicons name="bar-chart-outline" size={28} color="#BBC863" className="mr-3" />
+            <View>
+                <Text className="text-white font-bold text-lg">View Detailed Reports</Text>
+                <Text className="text-secondary text-xs">Analytics & Progress</Text>
+            </View>
           </TouchableOpacity>
 
-          <TouchableOpacity className="bg-[#4A7A60] w-[48%] p-4 rounded-2xl items-start">
-            <Ionicons name="bar-chart-outline" size={28} color="#BBC863" className="mb-2" />
-            <Text className="text-white font-bold text-lg">Reports</Text>
-          </TouchableOpacity>
         </View>
 
       </ScrollView>
