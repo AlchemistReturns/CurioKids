@@ -1,10 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as Clipboard from 'expo-clipboard'; // Make sure to install this
+import * as Clipboard from 'expo-clipboard';
 import { router } from "expo-router";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import {
   collection,
   doc,
+  getCountFromServer,
   getDoc,
   onSnapshot,
   query,
@@ -15,10 +16,20 @@ import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } fr
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth, firestore } from "../../config/firebase";
 
+// Extended Child Interface to include Rank
+interface ChildData {
+    id: string;
+    name?: string;
+    email?: string;
+    totalPoints?: number;
+    rank?: number | string;
+    [key: string]: any;
+}
+
 const ParentDashboardScreen = () => {
   const [user, setUser] = useState<User | null>(null);
   const [linkKey, setLinkKey] = useState<string | null>(null);
-  const [children, setChildren] = useState<Array<any>>([]);
+  const [children, setChildren] = useState<ChildData[]>([]);
   const [childrenLoading, setChildrenLoading] = useState(false);
 
   // 1. Auth Listener
@@ -46,7 +57,7 @@ const ParentDashboardScreen = () => {
     fetchLinkKey();
   }, [user]);
 
-  // 3. Listen for Children Updates
+  // 3. Listen for Children & Calculate Rank
   useEffect(() => {
     if (!user) return;
     setChildrenLoading(true);
@@ -54,14 +65,41 @@ const ParentDashboardScreen = () => {
       collection(firestore, "users"),
       where("parentUid", "==", user.uid)
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as any),
-      }));
+
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const list: ChildData[] = [];
+      
+      // Process each child
+      for (const d of snapshot.docs) {
+        const data = d.data();
+        const myPoints = data.totalPoints || 0;
+        
+        // Calculate Rank: Count how many children have MORE points than this child
+        let rank = "-";
+        try {
+            const usersRef = collection(firestore, 'users');
+            const betterPlayersQuery = query(
+                usersRef, 
+                where("role", "==", "child"), 
+                where("totalPoints", ">", myPoints)
+            );
+            const snapshotBetter = await getCountFromServer(betterPlayersQuery);
+            rank = (snapshotBetter.data().count + 1).toString(); // Rank = (People better than me) + 1
+        } catch (e) {
+            console.log("Rank calc error", e);
+        }
+
+        list.push({
+            id: d.id,
+            ...data,
+            rank: rank
+        });
+      }
+      
       setChildren(list);
       setChildrenLoading(false);
     });
+
     return () => unsubscribe();
   }, [user]);
 
@@ -74,7 +112,6 @@ const ParentDashboardScreen = () => {
     }
   };
 
-  // Logic to copy the code
   const copyToClipboard = async () => {
     if (linkKey) {
         await Clipboard.setStringAsync(linkKey);
@@ -99,7 +136,7 @@ const ParentDashboardScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Joining Code Card (Clickable) */}
+        {/* Joining Code Card */}
         <TouchableOpacity 
             onPress={copyToClipboard}
             activeOpacity={0.7}
@@ -132,25 +169,36 @@ const ParentDashboardScreen = () => {
         ) : (
           <View className="mb-8">
             {children.map((child) => (
-              <View key={child.id} className="bg-ternary p-4 rounded-2xl mb-3 flex-row items-center border border-ternary/50">
-                <View className="bg-base h-12 w-12 rounded-full items-center justify-center mr-4 border border-secondary">
-                  <Text className="text-primary font-bold text-lg">{(child.name?.[0] || child.email?.[0] || "C").toUpperCase()}</Text>
+              <View key={child.id} className="bg-ternary p-4 rounded-2xl mb-3 border border-ternary/50">
+                <View className="flex-row items-center mb-3">
+                    <View className="bg-base h-12 w-12 rounded-full items-center justify-center mr-4 border border-secondary">
+                        <Text className="text-primary font-bold text-lg">{(child.name?.[0] || child.email?.[0] || "C").toUpperCase()}</Text>
+                    </View>
+                    <View className="flex-1">
+                        <Text className="text-white font-bold text-lg">{child.name ?? "Unnamed Child"}</Text>
+                        <Text className="text-secondary text-xs">{child.email}</Text>
+                    </View>
                 </View>
-                <View className="flex-1">
-                  <Text className="text-white font-bold text-lg">{child.name ?? "Unnamed Child"}</Text>
-                  <Text className="text-secondary text-xs">{child.email}</Text>
+                
+                {/* Child Stats Grid */}
+                <View className="flex-row bg-base/30 rounded-xl p-3 justify-between">
+                    <View className="items-center flex-1 border-r border-ternary">
+                        <Text className="text-primary font-bold text-lg">{child.totalPoints ?? 0}</Text>
+                        <Text className="text-secondary text-[10px] uppercase">Points</Text>
+                    </View>
+                    <View className="items-center flex-1">
+                        <Text className="text-white font-bold text-lg">#{child.rank}</Text>
+                        <Text className="text-secondary text-[10px] uppercase">Global Rank</Text>
+                    </View>
                 </View>
-                <Ionicons name="chevron-forward" size={24} color="#BBC863" />
               </View>
             ))}
           </View>
         )}
 
-        {/* Quick Actions (Updated) */}
+        {/* Quick Actions */}
         <Text className="text-primary text-xl font-bold mb-4">Actions</Text>
         <View className="flex-row flex-wrap justify-between gap-y-4 mb-10">
-          
-          {/* Reports Button is now full width since "Add Child" is gone */}
           <TouchableOpacity className="bg-[#4A7A60] w-full p-4 rounded-2xl flex-row items-center justify-center">
             <Ionicons name="bar-chart-outline" size={28} color="#BBC863" className="mr-3" />
             <View>
@@ -158,7 +206,6 @@ const ParentDashboardScreen = () => {
                 <Text className="text-secondary text-xs">Analytics & Progress</Text>
             </View>
           </TouchableOpacity>
-
         </View>
 
       </ScrollView>

@@ -1,22 +1,43 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth } from "../../config/firebase";
+import { auth, firestore } from "../../config/firebase";
 
-const ChildDashboardScreen = () => {
+export default function ChildDashboardScreen() {
   const [user, setUser] = useState<User | null>(null);
+  const [childData, setChildData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Simple Auth Check
+  // 1. Auth Check
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) setUser(currentUser);
-      else router.replace("/login");
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        router.replace("/login");
+      }
     });
     return unsubscribe;
   }, []);
+
+  // 2. Real-time Data Listener
+  useEffect(() => {
+    if (!user) return;
+
+    const userDocRef = doc(firestore, "users", user.uid);
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setChildData(docSnap.data());
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   const handleSignOut = async () => {
     try {
@@ -27,16 +48,27 @@ const ChildDashboardScreen = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-base">
+        <ActivityIndicator size="large" color="#F0E491" />
+      </View>
+    );
+  }
+
   if (!user) return <View className="flex-1 bg-base" />;
 
-  // Extract display name or use default
-  const childName = user.displayName || "Explorer"; 
+  // Default values
+  const childName = childData?.name || user.displayName || "Explorer";
+  const stars = childData?.stars || 0;
+  const streak = childData?.streak || 0;
+  const totalPoints = childData?.totalPoints || 0; // Added Total Points
 
   return (
     <SafeAreaView className="flex-1 bg-base" edges={['top']}>
       <ScrollView className="px-6" showsVerticalScrollIndicator={false}>
         
-        {/* Header with Logout (Hidden/Subtle) */}
+        {/* Header */}
         <View className="flex-row justify-between items-center mt-6 mb-10">
           <View className="flex-row items-center">
             <View className="h-14 w-14 bg-ternary rounded-full justify-center items-center border-2 border-primary mr-4">
@@ -48,7 +80,7 @@ const ChildDashboardScreen = () => {
             </View>
           </View>
           
-          <TouchableOpacity onPress={handleSignOut} className="bg-ternary p-2 rounded-full">
+          <TouchableOpacity onPress={handleSignOut} className="bg-secondary/20 p-2 rounded-full border border-secondary">
              <Ionicons name="log-out-outline" size={24} color="#F0E491" />
           </TouchableOpacity>
         </View>
@@ -62,26 +94,33 @@ const ChildDashboardScreen = () => {
             <Ionicons name="play" size={48} color="#31694E" />
           </View>
           <Text className="text-base text-3xl font-black uppercase tracking-widest">Start Playing</Text>
-          <Text className="text-base/70 font-semibold">Continue: Space Adventure</Text>
+          <Text className="text-base/70 font-semibold">Continue Learning</Text>
         </TouchableOpacity>
 
-        {/* Stats Row */}
+        {/* Stats Row (Updated to include Points) */}
         <View className="flex-row justify-between mb-8">
-          <View className="bg-ternary w-[48%] p-4 rounded-2xl flex-row items-center justify-center space-x-3">
-            <Ionicons name="star" size={32} color="#F0E491" />
-            <View>
-              <Text className="text-white text-2xl font-bold">124</Text>
-              <Text className="text-secondary text-xs font-bold uppercase">Stars</Text>
-            </View>
+          
+          {/* Points Card */}
+          <View className="bg-ternary w-[31%] p-3 rounded-2xl items-center justify-center border border-primary/20">
+            <Ionicons name="trophy" size={28} color="#F0E491" />
+            <Text className="text-white text-xl font-bold mt-1">{totalPoints}</Text>
+            <Text className="text-secondary text-[10px] font-bold uppercase">Points</Text>
           </View>
 
-          <View className="bg-ternary w-[48%] p-4 rounded-2xl flex-row items-center justify-center space-x-3">
-            <Ionicons name="flame" size={32} color="#F0E491" />
-            <View>
-              <Text className="text-white text-2xl font-bold">12</Text>
-              <Text className="text-secondary text-xs font-bold uppercase">Days</Text>
-            </View>
+          {/* Stars Card */}
+          <View className="bg-ternary w-[31%] p-3 rounded-2xl items-center justify-center border border-primary/20">
+            <Ionicons name="star" size={28} color="#F0E491" />
+            <Text className="text-white text-xl font-bold mt-1">{stars}</Text>
+            <Text className="text-secondary text-[10px] font-bold uppercase">Stars</Text>
           </View>
+
+          {/* Streak Card */}
+          <View className="bg-ternary w-[31%] p-3 rounded-2xl items-center justify-center border border-primary/20">
+            <Ionicons name="flame" size={28} color="#F0E491" />
+            <Text className="text-white text-xl font-bold mt-1">{streak}</Text>
+            <Text className="text-secondary text-[10px] font-bold uppercase">Days</Text>
+          </View>
+
         </View>
 
         {/* Daily Mission */}
@@ -91,8 +130,8 @@ const ChildDashboardScreen = () => {
             <Ionicons name="rocket" size={24} color="#BBC863" />
           </View>
           <View className="flex-1">
-            <Text className="text-white font-bold text-lg">Complete "Solar System"</Text>
-            <Text className="text-secondary text-sm">Reward: +50 Stars</Text>
+            <Text className="text-white font-bold text-lg">Complete a Lesson</Text>
+            <Text className="text-secondary text-sm">Reward: +10 Stars</Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#BBC863" />
         </TouchableOpacity>
@@ -100,6 +139,4 @@ const ChildDashboardScreen = () => {
       </ScrollView>
     </SafeAreaView>
   );
-};
-
-export default ChildDashboardScreen;
+}

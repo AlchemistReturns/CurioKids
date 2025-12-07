@@ -1,13 +1,26 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { signOut, User } from "firebase/auth";
-import React from "react";
+import { doc, onSnapshot } from "firebase/firestore";
+import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth } from "../../config/firebase";
+import { auth, firestore } from "../../config/firebase";
 
 export default function ChildProfile({ user }: { user: User }) {
-  
+  const [profileData, setProfileData] = useState<any>(null);
+
+  // Listen to profile changes in real-time
+  useEffect(() => {
+    const userRef = doc(firestore, "users", user.uid);
+    const unsubscribe = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setProfileData(docSnap.data());
+      }
+    });
+    return () => unsubscribe();
+  }, [user]);
+
   const handleSignOut = async () => {
     try {
       await signOut(auth);
@@ -17,71 +30,82 @@ export default function ChildProfile({ user }: { user: User }) {
     }
   };
 
-  const Badge = ({ icon, color }: { icon: any, color: string }) => (
-    <View className="bg-ternary p-3 rounded-full m-1 border-2 border-primary/20">
-      <Ionicons name={icon} size={28} color={color} />
-    </View>
-  );
+  // Helper to capitalize subject names
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  // Extract marks from DB (from 'categoryScores' map)
+  const subjects = profileData?.categoryScores || {}; 
+  const subjectKeys = Object.keys(subjects);
 
   return (
     <SafeAreaView className="flex-1 bg-base" edges={['top']}>
       <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
         
-        {/* Fun Header */}
-        <View className="items-center mt-8 mb-8">
-          <View className="h-28 w-28 bg-[#4A7A60] rounded-full justify-center items-center mb-4 border-4 border-primary shadow-xl">
-            <Ionicons name="happy" size={64} color="#F0E491" />
+        {/* Profile Header */}
+        <View className="items-center mt-8 mb-10">
+          <View className="h-24 w-24 bg-[#4A7A60] rounded-full justify-center items-center mb-4 border-4 border-primary shadow-xl">
+            <Ionicons name="school" size={48} color="#F0E491" />
           </View>
           <Text className="text-primary text-3xl font-extrabold tracking-wide">
-             {user.displayName || "Explorer"}
+             {profileData?.name || user.displayName || "Student"}
           </Text>
-          <Text className="text-secondary text-lg font-semibold">Level 5 Scholar</Text>
+          <Text className="text-secondary text-base font-semibold">{user.email}</Text>
         </View>
 
-        {/* XP Card */}
-        <View className="bg-ternary p-6 rounded-3xl mb-8 border border-secondary/30 relative overflow-hidden">
-            {/* Decorative Icon */}
-            <Ionicons name="trophy" size={80} color="rgba(240, 228, 145, 0.1)" style={{position: 'absolute', right: -10, bottom: -10}} />
-            
-            <Text className="text-secondary text-sm font-bold uppercase mb-1">Current XP</Text>
-            <Text className="text-white text-4xl font-black mb-4">1,250</Text>
-            
-            <View className="w-full h-3 bg-base/50 rounded-full overflow-hidden">
-                <View className="h-full w-[70%] bg-primary rounded-full" />
+        {/* Academic Performance Section */}
+        <Text className="text-primary text-xl font-bold mb-4">Subject Marks</Text>
+        
+        {subjectKeys.length === 0 ? (
+            <View className="bg-ternary p-6 rounded-2xl border border-secondary/30 items-center mb-8">
+                <Ionicons name="book-outline" size={48} color="#BBC863" className="mb-2 opacity-50" />
+                <Text className="text-secondary text-center">No marks recorded yet.</Text>
+                <Text className="text-secondary/60 text-xs mt-1">Play games to earn scores!</Text>
             </View>
-            <Text className="text-secondary text-xs text-right mt-1">250 XP to Level 6</Text>
-        </View>
-
-        {/* Badges Collection */}
-        <Text className="text-primary text-xl font-bold mb-4 ml-1">My Badges</Text>
-        <View className="flex-row flex-wrap justify-center bg-base/50 p-4 rounded-2xl border-2 border-dashed border-ternary mb-8">
-            <Badge icon="rocket" color="#FF6B6B" />
-            <Badge icon="planet" color="#4ECDC4" />
-            <Badge icon="book" color="#FFE66D" />
-            <Badge icon="leaf" color="#95E1D3" />
-            <Badge icon="telescope" color="#A8D8EA" />
-            <View className="bg-ternary/30 p-3 rounded-full m-1 justify-center items-center w-[56px] h-[56px]">
-                <Text className="text-secondary/50 text-xs">???</Text>
+        ) : (
+            <View className="mb-8">
+                {subjectKeys.map((subject, index) => (
+                    <View 
+                        key={index} 
+                        className="flex-row items-center justify-between bg-ternary p-5 rounded-2xl mb-3 border border-primary/10 shadow-sm"
+                    >
+                        <View className="flex-row items-center">
+                            <View className="bg-base p-2 rounded-lg mr-4">
+                                <Ionicons name="bookmark" size={20} color="#F0E491" />
+                            </View>
+                            <Text className="text-white text-lg font-bold capitalize">
+                                {capitalize(subject)}
+                            </Text>
+                        </View>
+                        
+                        <View className="items-end">
+                            <Text className="text-primary text-2xl font-black">
+                                {subjects[subject]}
+                            </Text>
+                            <Text className="text-secondary text-[10px] uppercase font-bold">Score</Text>
+                        </View>
+                    </View>
+                ))}
             </View>
-        </View>
+        )}
 
-        {/* Simple Settings */}
+        {/* Account Actions */}
         <View className="mb-8">
             <TouchableOpacity className="flex-row items-center justify-between bg-ternary/40 p-4 rounded-xl mb-3">
                 <View className="flex-row items-center">
-                    <Ionicons name="volume-high" size={24} color="#BBC863" />
-                    <Text className="text-white font-bold ml-3 text-lg">Sound Effects</Text>
+                    <Ionicons name="settings-outline" size={24} color="#BBC863" />
+                    <Text className="text-white font-bold ml-3 text-lg">App Settings</Text>
                 </View>
-                <Ionicons name="toggle" size={32} color="#F0E491" />
+                <Ionicons name="chevron-forward" size={24} color="#BBC863" />
             </TouchableOpacity>
         </View>
 
-        {/* Big Logout */}
+        {/* Logout */}
         <TouchableOpacity 
           onPress={handleSignOut}
-          className="bg-[#D9534F] py-4 rounded-2xl shadow-lg active:scale-95 transform transition"
+          className="bg-[#D9534F] py-4 rounded-2xl shadow-lg active:scale-95 transform transition mb-10 flex-row justify-center items-center"
         >
-          <Text className="text-white text-center font-bold text-xl uppercase tracking-widest">
+          <Ionicons name="log-out-outline" size={24} color="white" style={{marginRight: 8}} />
+          <Text className="text-white font-bold text-xl uppercase tracking-widest">
             Log Out
           </Text>
         </TouchableOpacity>
