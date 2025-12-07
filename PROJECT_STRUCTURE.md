@@ -259,7 +259,7 @@ Use Tailwind CSS classes via the `className` prop:
 
 ### iOS
 - Supports tablets
-- Uses adaptive icons
+- Standard app icon configured
 
 ### Android
 - Adaptive icons configured
