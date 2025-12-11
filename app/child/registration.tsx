@@ -1,21 +1,21 @@
 import { router } from "expo-router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import {
-  collection,
-  doc,
-  getDocs,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
+    collection,
+    doc,
+    getDocs,
+    query,
+    serverTimestamp,
+    setDoc,
+    where,
 } from "firebase/firestore";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { auth, firestore } from "../../config/firebase";
 
@@ -74,15 +74,19 @@ const ChildRegistrationScreen = () => {
                 createdAt: serverTimestamp(),
             });
 
+            // Initialize child progress (points, stars, etc.)
+            const { ChildProgressService } = require("../../services/ChildProgressService");
+            await ChildProgressService.initializeProgress(childUid);
+
             router.replace("/child/dashboard");
         } catch (err: any) {
             console.error(err);
             const message =
                 err?.message ?? err?.code
                     ? String(err.message || err.code)
-                          .replace("Firebase: Error (auth/", "")
-                          .replace(").", "")
-                          .replace(/-/g, " ")
+                        .replace("Firebase: Error (auth/", "")
+                        .replace(").", "")
+                        .replace(/-/g, " ")
                     : "An unknown error occurred.";
             setError(message);
         } finally {

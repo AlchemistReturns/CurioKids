@@ -10,6 +10,7 @@ import { auth, firestore } from "../../config/firebase";
 export default function ChildDashboardScreen() {
   const [user, setUser] = useState<User | null>(null);
   const [childData, setChildData] = useState<any>(null);
+  const [progressData, setProgressData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   // 1. Auth Check
@@ -24,19 +25,31 @@ export default function ChildDashboardScreen() {
     return unsubscribe;
   }, []);
 
-  // 2. Real-time Data Listener
+  // 2. Real-time Data Listeners
   useEffect(() => {
     if (!user) return;
 
+    // User Profile Listener
     const userDocRef = doc(firestore, "users", user.uid);
-    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+    const unsubUser = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) {
         setChildData(docSnap.data());
+      }
+    });
+
+    // Progress Listener
+    const progressDocRef = doc(firestore, "child_progress", user.uid);
+    const unsubProgress = onSnapshot(progressDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setProgressData(docSnap.data());
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubUser();
+      unsubProgress();
+    };
   }, [user]);
 
   const handleSignOut = async () => {
@@ -60,32 +73,32 @@ export default function ChildDashboardScreen() {
 
   // Default values
   const childName = childData?.name || user.displayName || "Explorer";
-  const stars = childData?.stars || 0;
-  const streak = childData?.streak || 0;
-  const totalPoints = childData?.totalPoints || 0; // Added Total Points
+  const stars = progressData?.stars || 0;
+  const streak = progressData?.streak || 0;
+  const totalPoints = progressData?.totalPoints || 0;
 
   return (
     <SafeAreaView className="flex-1 bg-base" edges={['top']}>
       <ScrollView className="px-6" showsVerticalScrollIndicator={false}>
-        
+
         {/* Header */}
         <View className="flex-row justify-between items-center mt-6 mb-10">
           <View className="flex-row items-center">
             <View className="h-14 w-14 bg-primary rounded-full justify-center items-center border-2 border-primary mr-4">
-               <Ionicons name="happy" size={32} color="#F0E491" />
+              <Ionicons name="happy" size={32} color="#F0E491" />
             </View>
             <View>
               <Text className="text-primary font-bold text-2xl">Welcome back!</Text>
             </View>
           </View>
-          
+
           <TouchableOpacity onPress={handleSignOut} className="bg-[#D9534F] p-2 rounded-full">
-             <Ionicons name="log-out-outline" size={24} color="#fff" />
+            <Ionicons name="log-out-outline" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
         {/* BIG Play Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           className="bg-primary h-48 rounded-3xl justify-center items-center mb-8 shadow-lg shadow-black/50"
           onPress={() => router.push("/(tabs)/courses")}
         >
@@ -98,7 +111,7 @@ export default function ChildDashboardScreen() {
 
         {/* Stats Row (Updated to include Points) */}
         <View className="flex-row justify-between mb-8">
-          
+
           {/* Points Card */}
           <View className="bg-primary w-[31%] p-3 rounded-2xl items-center justify-center">
             <Ionicons name="trophy" size={28} color="#F0E491" />

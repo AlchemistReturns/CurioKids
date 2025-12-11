@@ -1,6 +1,6 @@
 import { auth, firestore } from '@/config/firebase';
 import { Ionicons } from "@expo/vector-icons";
-import { collection, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -9,9 +9,7 @@ interface LeaderboardUser {
   id: string;
   name: string;
   totalPoints: number;
-  categoryScores?: {
-    [key: string]: number;
-  };
+
   rank?: number; // Helper for display
 }
 
@@ -24,7 +22,7 @@ export default function Leaderboard() {
 
   useEffect(() => {
     if (auth.currentUser) {
-        setCurrentUserId(auth.currentUser.uid);
+      setCurrentUserId(auth.currentUser.uid);
     }
     recalculateAndFetchLeaderboard();
   }, []);
@@ -33,34 +31,22 @@ export default function Leaderboard() {
     try {
       setStatusMessage("Updating scores...");
       const usersRef = collection(firestore, 'users');
-      
+
       // Fetch ALL children to calculate accurate ranks
       const q = query(usersRef, where("role", "==", "child"));
       const querySnapshot = await getDocs(q);
-      
+
       const allChildren: LeaderboardUser[] = [];
       const batch = writeBatch(firestore);
       let updatesNeeded = false;
 
       querySnapshot.forEach((document) => {
         const data = document.data();
-        const scores = data.categoryScores || {};
-        
-        // Calculate total
-        const calculatedTotal = Object.values(scores).reduce((sum: number, score) => sum + (Number(score) || 0), 0) as number;
-        
-        // Sync DB if needed
-        if (data.totalPoints !== calculatedTotal) {
-            const userDocRef = doc(firestore, 'users', document.id);
-            batch.update(userDocRef, { totalPoints: calculatedTotal });
-            updatesNeeded = true;
-        }
 
         allChildren.push({
           id: document.id,
           name: data.name || "Unknown",
-          totalPoints: calculatedTotal,
-          categoryScores: scores,
+          totalPoints: data.totalPoints || 0,
         });
       });
 
@@ -79,8 +65,8 @@ export default function Leaderboard() {
       if (auth.currentUser) {
         const myIndex = allChildren.findIndex(child => child.id === auth.currentUser?.uid);
         if (myIndex !== -1) {
-            // Store user data with their actual rank (1-based)
-            setCurrentUserData({ ...allChildren[myIndex], rank: myIndex + 1 });
+          // Store user data with their actual rank (1-based)
+          setCurrentUserData({ ...allChildren[myIndex], rank: myIndex + 1 });
         }
       }
 
@@ -103,43 +89,36 @@ export default function Leaderboard() {
   // Reusable Card Component
   const LeaderCard = ({ item, index, isFooter = false }: { item: LeaderboardUser; index: number, isFooter?: boolean }) => {
     const isMe = item.id === currentUserId;
-    
+
     return (
-        <View 
-            className={`flex-row items-center p-4 mx-4 rounded-2xl shadow-sm ${
-                isMe ? 'bg-primary' : 'bg-primary'
-            } ${isFooter ? 'mt-0' : 'mb-3'}`}
+      <View
+        className={`flex-row items-center p-4 mx-4 rounded-2xl shadow-sm ${isMe ? 'bg-primary' : 'bg-primary'
+          } ${isFooter ? 'mt-0' : 'mb-3'}`}
+      >
+        <View
+          className="w-10 h-10 justify-center items-center rounded-full mr-4 border border-secondary"
         >
-            <View 
-                className="w-10 h-10 justify-center items-center rounded-full mr-4 border border-secondary"
-            >
-                {index < 3 && !isFooter ? (
-                    <Ionicons name="trophy" size={18} color={getRankColor(index)} />
-                ) : (
-                    <Text className={isMe ? "text-white font-bold text-lg" : "text-secondary font-bold text-lg"}>
-                        {item.rank ? item.rank : index + 1}
-                    </Text>
-                )}
-            </View>
-
-            <View className="flex-1">
-                <Text className={`font-bold text-lg ${isMe ? 'text-white' : 'text-white'}`}>
-                    {item.name} {isMe && "(You)"}
-                </Text>
-                {/* Show subjects breakdown */}
-                <Text className="text-secondary text-xs">
-                    {Object.entries(item.categoryScores || {})
-                        .slice(0, 3)
-                        .map(([subject, score]) => `${subject.charAt(0).toUpperCase() + subject.slice(1)}: ${score}`)
-                        .join(' • ')}
-                </Text>
-            </View>
-
-            <View className="items-end">
-                <Text className="text-white font-black text-2xl">{item.totalPoints}</Text>
-                <Text className="text-secondary text-[10px] font-bold uppercase tracking-widest">Total</Text>
-            </View>
+          {index < 3 && !isFooter ? (
+            <Ionicons name="trophy" size={18} color={getRankColor(index)} />
+          ) : (
+            <Text className={isMe ? "text-white font-bold text-lg" : "text-secondary font-bold text-lg"}>
+              {item.rank ? item.rank : index + 1}
+            </Text>
+          )}
         </View>
+
+        <View className="flex-1">
+          <Text className={`font-bold text-lg ${isMe ? 'text-white' : 'text-white'}`}>
+            {item.name} {isMe && "(You)"}
+          </Text>
+          {/* Show subjects breakdown */}
+        </View>
+
+        <View className="items-end">
+          <Text className="text-white font-black text-2xl">{item.totalPoints}</Text>
+          <Text className="text-secondary text-[10px] font-bold uppercase tracking-widest">Total</Text>
+        </View>
+      </View>
     );
   };
 
@@ -176,12 +155,12 @@ export default function Leaderboard() {
       {/* Sticky Footer: Only show if user exists AND is NOT in the top 20 list */}
       {currentUserData && (currentUserData.rank || 0) > 20 && (
         <View className="absolute bottom-0 w-full bg-base pt-4 pb-8 border-t-2 border-ternary shadow-2xl">
-            <Text className="text-center text-secondary text-xs uppercase mb-2">Your Ranking</Text>
-            <LeaderCard 
-                item={currentUserData} 
-                index={(currentUserData.rank || 0) - 1} // Pass logical index 
-                isFooter={true} 
-            />
+          <Text className="text-center text-secondary text-xs uppercase mb-2">Your Ranking</Text>
+          <LeaderCard
+            item={currentUserData}
+            index={(currentUserData.rank || 0) - 1} // Pass logical index 
+            isFooter={true}
+          />
         </View>
       )}
     </SafeAreaView>
