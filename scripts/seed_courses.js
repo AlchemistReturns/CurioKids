@@ -1,15 +1,17 @@
 const { initializeApp } = require("firebase/app");
 const { getFirestore, collection, addDoc, doc, setDoc } = require("firebase/firestore");
 
+require('dotenv').config();
+
 // Hardcoded config to avoid RN dependencies in Node script
 const firebaseConfig = {
-    apiKey: "AIzaSyCfSeRMLdUy7unyxhxfnbna3LJwy8mePLw",
-    authDomain: "curiokids-c256c.firebaseapp.com",
-    projectId: "curiokids-c256c",
-    storageBucket: "curiokids-c256c.firebasestorage.app",
-    messagingSenderId: "166177413672",
-    appId: "1:166177413672:web:f8d72a355628eeaa1c331d",
-    measurementId: "G-EQ6P1DHRR0"
+    apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+    measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);
