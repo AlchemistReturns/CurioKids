@@ -14,13 +14,13 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-// CRITICAL: This is needed for the Tracing Game to feel smooth
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth, firestore } from "../../../../config/firebase";
 import { ChildProgressService } from "../../../../services/ChildProgressService";
 
-// Import your Tracing Game Component
+// Game Components
+import BubblePopGame from "@/components/LessonEngine/BubblePopGame";
 import TracingGame, { GameResult } from "@/components/LessonEngine/TracingGame";
 
 const { width } = Dimensions.get("window");
@@ -56,9 +56,6 @@ export default function LessonScreen() {
 
     useEffect(() => { fetchLesson(); }, [id]);
 
-    // --- OPTIMIZATION: USEMEMO ---
-    // This prevents the PanResponder from being recreated on every render
-    // which causes lag and dropped frames.
     const panResponder = useMemo(() => PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onPanResponderMove: Animated.event(
@@ -66,10 +63,8 @@ export default function LessonScreen() {
             { useNativeDriver: false }
         ),
         onPanResponderRelease: (_, gesture) => {
-            // Check if lesson data is loaded before using it
             if (!lesson?.data) return;
 
-            // Simple hit detection (center area)
             if (gesture.dy < -80) {
                 if (draggedItem === lesson.data.correctAnswer) {
                     setIsCorrect(true);
@@ -85,7 +80,7 @@ export default function LessonScreen() {
                 useNativeDriver: false
             }).start();
         }
-    }), [lesson, draggedItem, isCorrect]); // Only recreate if these change
+    }), [lesson, draggedItem, isCorrect]);
 
     const getRandomEncouragement = () => {
         const phrases = ["Awesome!", "You're a Star! 🌟", "Super Brain! 🧠", "Way to go!", "Perfect!", "Smart Kid! 🎓"];
@@ -127,7 +122,6 @@ export default function LessonScreen() {
     };
 
     // --- ANIMATION FUNCTIONS ---
-
     const triggerShake = () => {
         Animated.sequence([
             Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
@@ -153,7 +147,7 @@ export default function LessonScreen() {
         }
     };
 
-    // --- HANDLERS ---
+    // --- LOGIC HANDLERS ---
     const handlePatternSelect = (option: string) => {
         setSelectedOption(option);
         if (option === lesson.data.correctAnswer) {
@@ -198,7 +192,7 @@ export default function LessonScreen() {
         }
     };
 
-    // --- TRACING SPECIFIC HANDLER ---
+    // --- TRACING HANDLER ---
     const handleTracingComplete = async (result: GameResult) => {
         if (!auth.currentUser) return;
         setCompleting(true);
@@ -213,6 +207,27 @@ export default function LessonScreen() {
             await navigateToNextLesson();
         } catch (error) {
             console.error("Tracing Save Error:", error);
+            Alert.alert("Error", "Could not save progress");
+        } finally {
+            setCompleting(false);
+        }
+    };
+
+    // --- BUBBLE GAME HANDLER ---
+    const handleBubbleComplete = async (score: number, stars: number) => {
+        if (!auth.currentUser) return;
+        setCompleting(true);
+        try {
+            await ChildProgressService.markItemComplete(
+                auth.currentUser.uid,
+                id as string,
+                score || 50,
+                stars || 3
+            );
+            setIsCorrect(true);
+            await navigateToNextLesson();
+        } catch (error) {
+            console.error("Bubble Save Error:", error);
             Alert.alert("Error", "Could not save progress");
         } finally {
             setCompleting(false);
@@ -286,12 +301,11 @@ export default function LessonScreen() {
     if (!lesson) return null;
 
     return (
-        // CRITICAL FIX: GestureHandlerRootView ensures smooth Tracing
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
                 
-                {/* Hide Header for Tracing Game */}
-                {lesson.type !== 'tracing' && (
+                {/* Hide Header for Full Screen Games */}
+                {lesson.type !== 'tracing' && lesson.type !== 'bubble_pop' && (
                     <View className="flex-row items-center px-4 py-4 border-b border-gray-100 bg-white z-10">
                         <TouchableOpacity onPress={() => router.back()} className="mr-4">
                             <Ionicons name="close" size={28} color="#333" />
@@ -300,7 +314,7 @@ export default function LessonScreen() {
                     </View>
                 )}
 
-                {/* --- RENDER GAME CONTENT --- */}
+                {/* --- RENDER CONTENT --- */}
                 {lesson.type === 'tracing' ? (
                     <View className="flex-1 bg-[#edf0f7]">
                         <TracingGame 
@@ -313,6 +327,19 @@ export default function LessonScreen() {
                              <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
                                 <ActivityIndicator size="large" color="#FFD700" />
                                 <Text className="text-white font-bold mt-4">Saving...</Text>
+                            </View>
+                        )}
+                    </View>
+                ) : lesson.type === 'bubble_pop' ? (
+                    <View className="flex-1 bg-[#E0F7FA]">
+                        <BubblePopGame 
+                            onComplete={handleBubbleComplete}
+                            onExit={() => router.back()}
+                        />
+                         {completing && (
+                             <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
+                                <ActivityIndicator size="large" color="#FFD700" />
+                                <Text className="text-white font-bold mt-4">Great Job! Saving...</Text>
                             </View>
                         )}
                     </View>
@@ -466,8 +493,8 @@ export default function LessonScreen() {
                     </ScrollView>
                 )}
 
-                {/* Hide Footer for Tracing */}
-                {lesson.type !== 'tracing' && (
+                {/* Footer Logic */}
+                {lesson.type !== 'tracing' && lesson.type !== 'bubble_pop' && (
                     <View className="p-6 border-t border-gray-100 bg-white">
                         <TouchableOpacity
                             className={`py-4 rounded-xl shadow-md border-b-4 active:border-b-0 active:translate-y-1 ${(lesson.type === 'story_intro' || isCorrect) ? 'bg-secondary border-yellow-500' : 'bg-gray-200 border-gray-300'}`}

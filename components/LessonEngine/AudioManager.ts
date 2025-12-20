@@ -1,10 +1,16 @@
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 
-const SOUND_FILES: Record<string, any> = {
-  // Utility Sounds
+// --- 1. SEPARATE ASSETS ---
+// Keep these in memory (Fast response needed)
+const SFX_FILES: Record<string, any> = {
+  pop: require('@/assets/sounds/pop.mp3'), 
+  boing: require('@/assets/sounds/boing.mp3'),
   correct: require('@/assets/sounds/correct_ding.mp3'),
   sparkle: require('@/assets/sounds/cheer.mp3'),
+};
 
+// Load these ON DEMAND (Saves memory, prevents crash)
+const VOICE_FILES: Record<string, any> = {
   // Letters (A-Z)
   voice_a: require('@/assets/sounds/voice_a.mp3'),
   voice_b: require('@/assets/sounds/voice_b.mp3'),
@@ -47,63 +53,89 @@ const SOUND_FILES: Record<string, any> = {
 };
 
 class AudioManager {
-  sounds: Record<string, Audio.Sound> = {};
+  // Only store SFX players permanently
+  sfxSounds: Record<string, Audio.Sound> = {};
   isLoaded = false;
 
   async loadSounds() {
-    if (this.isLoaded) return; // Prevent double loading
+    if (this.isLoaded) return;
 
-    // --- AUDIO CONFIGURATION ---
     try {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         playsInSilentModeIOS: true,
         shouldDuckAndroid: true,
-        // FIX: Use 'DuckOthers' (CamelCase), not 'DUCK_OTHERS'
         interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
         interruptionModeIOS: InterruptionModeIOS.DuckOthers,
         staysActiveInBackground: false,
       });
-    } catch (e) {
-      console.warn("Error setting audio mode:", e);
-    }
 
-    // --- LOAD SOUNDS ---
-    try {
-      const promises = Object.entries(SOUND_FILES).map(async ([key, file]) => {
+      // ONLY LOAD SFX (Safe amount for Android/iOS limits)
+      const promises = Object.entries(SFX_FILES).map(async ([key, file]) => {
         try {
             const { sound } = await Audio.Sound.createAsync(file);
-            this.sounds[key] = sound;
+            this.sfxSounds[key] = sound;
         } catch (e) {
-            console.warn(`Failed to load sound: ${key}. Check filename.`);
+            console.warn(`Failed to load SFX: ${key}`);
         }
       });
+
       await Promise.all(promises);
       this.isLoaded = true;
+      console.log("SFX Audio Loaded");
+
     } catch (error) {
       console.warn("Global audio load error:", error);
     }
   }
 
   async play(name: string) {
-    const sound = this.sounds[name];
-    if (sound) {
+    // 1. STRATEGY: PRELOADED SFX
+    if (this.sfxSounds[name]) {
       try {
-        await sound.replayAsync();
+        await this.sfxSounds[name].replayAsync();
       } catch (e) {
-        console.log("Audio play error", e);
+        // If the player crashed/unloaded, reload it
+        try {
+            await this.sfxSounds[name].unloadAsync();
+            await this.sfxSounds[name].loadAsync(SFX_FILES[name]);
+            await this.sfxSounds[name].playAsync();
+        } catch (reloadError) {
+            console.log("SFX Recovery failed", reloadError);
+        }
       }
+      return;
+    }
+
+    // 2. STRATEGY: LAZY LOAD VOICE (Load -> Play -> Destroy)
+    const voiceFile = VOICE_FILES[name];
+    if (voiceFile) {
+        try {
+            // Create a disposable sound object
+            const { sound } = await Audio.Sound.createAsync(voiceFile, { shouldPlay: true });
+            
+            // Auto-cleanup when done to free memory
+            sound.setOnPlaybackStatusUpdate(async (status) => {
+                if (status.isLoaded && status.didJustFinish) {
+                    await sound.unloadAsync();
+                }
+            });
+        } catch (e) {
+            console.log(`Error streaming voice: ${name}`, e);
+        }
     } else {
-        // Safe fail - just log it, don't crash the app
-        console.log(`Sound [${name}] requested but not loaded.`);
+        console.log(`Sound [${name}] not found in map.`);
     }
   }
 
   async unloadSounds() {
-    for (const sound of Object.values(this.sounds)) {
-      await sound.unloadAsync();
+    // Unload SFX
+    for (const sound of Object.values(this.sfxSounds)) {
+      try {
+        await sound.unloadAsync();
+      } catch (e) { /* ignore */ }
     }
-    this.sounds = {};
+    this.sfxSounds = {};
     this.isLoaded = false;
   }
 }
