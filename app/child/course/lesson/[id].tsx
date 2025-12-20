@@ -1,10 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { doc, getDoc } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from "firebase/firestore";
+import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    Animated,
+    Dimensions,
+    Easing,
+    PanResponder,
     ScrollView,
     Text,
     TouchableOpacity,
@@ -14,156 +18,467 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { auth, firestore } from "../../../../config/firebase";
 import { ChildProgressService } from "../../../../services/ChildProgressService";
 
+
+const { width } = Dimensions.get("window");
+
+
+
 export default function LessonScreen() {
     const { courseId, moduleId, id, title } = useLocalSearchParams();
+    
+    // Data State
     const [lesson, setLesson] = useState<any>(null);
+    const [currentModuleOrder, setCurrentModuleOrder] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [completing, setCompleting] = useState(false);
-    const [role, setRole] = useState<string | null>(null);
+    // Drag Game State
+    const [draggedItem, setDraggedItem] = useState<string | null>(null);
+    const dragPosition = useRef(new Animated.ValueXY()).current;
+    
+    // Game Logic State
+    const [selectedOption, setSelectedOption] = useState<string | null>(null);
+    const [isCorrect, setIsCorrect] = useState<boolean>(false);
+    const [feedbackMsg, setFeedbackMsg] = useState<string>("");
+    
+    // Sequencing State
+    const [sequenceStep, setSequenceStep] = useState<number>(0);
+    const [completedSequence, setCompletedSequence] = useState<string[]>([]);
 
-    useEffect(() => {
-        if (auth.currentUser) {
-            getDoc(doc(firestore, "users", auth.currentUser.uid)).then(snap => {
-                if (snap.exists()) {
-                    setRole(snap.data().role);
+    // --- ANIMATION VALUES ---
+    const shakeAnim = useRef(new Animated.Value(0)).current; 
+    const scaleAnim = useRef(new Animated.Value(1)).current; 
+    const lumoPosition = useRef(new Animated.Value(-100)).current; 
+    
+    const isBridgeLevel = lesson?.title?.toLowerCase().includes("bridge");
+
+    useEffect(() => { fetchLesson(); }, [id]);
+    const panResponder = PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onPanResponderMove: Animated.event(
+            [null, { dx: dragPosition.x, dy: dragPosition.y }],
+            { useNativeDriver: false }
+        ),
+        onPanResponderRelease: (_, gesture) => {
+            // Simple hit detection (center area)
+            if (gesture.dy < -80) {
+                if (draggedItem === lesson.data.correctAnswer) {
+                    setIsCorrect(true);
+                    setFeedbackMsg(lesson.data.successText || getRandomEncouragement());
+                    triggerSuccess();
+                } else {
+                    triggerShake();
                 }
-            });
-        }
-    }, []);
+            }
 
-    useEffect(() => {
-        fetchLesson();
-    }, [id]);
+            Animated.spring(dragPosition, {
+                toValue: { x: 0, y: 0 },
+                useNativeDriver: false
+            }).start();
+        }
+    });
+
+
+    const getRandomEncouragement = () => {
+        const phrases = ["Awesome!", "You're a Star! 🌟", "Super Brain! 🧠", "Way to go!", "Perfect!", "Smart Kid! 🎓"];
+        return phrases[Math.floor(Math.random() * phrases.length)];
+    };
 
     const fetchLesson = async () => {
+        setLoading(true);
         try {
-            const docRef = doc(
-                firestore,
-                "courses",
-                courseId as string,
-                "modules",
-                moduleId as string,
-                "lessons",
-                id as string
-            );
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                setLesson(docSnap.data());
+            // FIX: Ensure parameters are treated as strings
+            const cId = courseId as string;
+            const mId = moduleId as string;
+            const lId = id as string;
+
+            const lessonRef = doc(firestore, "courses", cId, "modules", mId, "lessons", lId);
+            const lessonSnap = await getDoc(lessonRef);
+            
+            const moduleRef = doc(firestore, "courses", cId, "modules", mId);
+            const moduleSnap = await getDoc(moduleRef);
+
+            if (lessonSnap.exists() && moduleSnap.exists()) {
+                setLesson(lessonSnap.data());
+                setCurrentModuleOrder(moduleSnap.data().order);
+                resetGameState();
             } else {
-                Alert.alert("Error", "Lesson not found");
                 router.back();
             }
-        } catch (error) {
-            console.error("Error fetching lesson:", error);
-        } finally {
-            setLoading(false);
+        } catch (error) { console.error(error); } finally { setLoading(false); }
+    };
+
+    const resetGameState = () => {
+        setSelectedOption(null);
+        setIsCorrect(false);
+        setFeedbackMsg("");
+        setSequenceStep(0);
+        setCompletedSequence([]);
+        shakeAnim.setValue(0);
+        scaleAnim.setValue(1);
+        lumoPosition.setValue(-100); 
+    };
+
+    // --- ANIMATION FUNCTIONS ---
+
+    const triggerShake = () => {
+        Animated.sequence([
+            Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+            Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+            Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+            Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true })
+        ]).start();
+    };
+
+    const triggerSuccess = () => {
+        Animated.sequence([
+            Animated.timing(scaleAnim, { toValue: 1.5, duration: 150, useNativeDriver: true }),
+            Animated.timing(scaleAnim, { toValue: 1, duration: 150, useNativeDriver: true })
+        ]).start();
+
+        if (isBridgeLevel) {
+            Animated.timing(lumoPosition, {
+                toValue: width, 
+                duration: 3000, 
+                easing: Easing.linear,
+                useNativeDriver: true
+            }).start();
         }
     };
 
+    // --- GAME HANDLERS ---
+
+    const handlePatternSelect = (option: string) => {
+        setSelectedOption(option);
+        if (option === lesson.data.correctAnswer) {
+            setIsCorrect(true);
+            setFeedbackMsg(getRandomEncouragement());
+            triggerSuccess();
+        } else {
+            setIsCorrect(false);
+            setFeedbackMsg("Oops! Try again!");
+            triggerShake();
+        }
+    };
+
+    const handleSortingSelect = (item: string) => {
+        setSelectedOption(item);
+        if (item === lesson.data.correctAnswer) {
+            setIsCorrect(true);
+            setFeedbackMsg(lesson.data.explanation || getRandomEncouragement());
+            triggerSuccess();
+        } else {
+            setIsCorrect(false);
+            setFeedbackMsg("Look closely!");
+            triggerShake();
+        }
+    };
+
+    const handleSequencingSelect = (item: string) => {
+        const correctItem = lesson.data.correctOrder[sequenceStep];
+        if (item === correctItem) {
+            const newSequence = [...completedSequence, item];
+            setCompletedSequence(newSequence);
+            setSequenceStep(sequenceStep + 1);
+            triggerSuccess(); 
+
+            if (newSequence.length === lesson.data.correctOrder.length) {
+                setIsCorrect(true);
+                setFeedbackMsg("🌟 Perfect Order! You did it!");
+            }
+        } else {
+            triggerShake();
+            Alert.alert("Try Again", "That comes later! What happens first?");
+        }
+    };
+
+    // --- NAVIGATION LOGIC ---
     const handleComplete = async () => {
         if (!auth.currentUser) return;
+        
+        const isGame = ['logic_pattern', 'logic_sorting', 'logic_sequencing'].includes(lesson.type);
+        if (isGame && !isCorrect) {
+            triggerShake();
+            return;
+        }
+
         setCompleting(true);
         try {
-            const points = lesson.points || 10;
-            const stars = lesson.stars || 1;
+            await ChildProgressService.markItemComplete(auth.currentUser.uid, id as string, lesson.points || 10, lesson.stars || 1);
 
-            await ChildProgressService.markItemComplete(
-                auth.currentUser.uid,
-                id as string,
-                points,
-                stars
+            // FIX: Explicitly cast these to string to prevent Type Errors
+            const cId = courseId as string;
+            const mId = moduleId as string;
+
+            // 1. Navigate to Next Lesson
+            const nextLessonOrder = lesson.order + 1;
+            const lessonsRef = collection(firestore, "courses", cId, "modules", mId, "lessons");
+            const lessonQ = query(lessonsRef, where("order", "==", nextLessonOrder), limit(1));
+            const lessonSnap = await getDocs(lessonQ);
+
+            if (!lessonSnap.empty) {
+                const nextDoc = lessonSnap.docs[0];
+                router.push({
+                    pathname: "/child/course/lesson/[id]",
+                    params: { 
+                        courseId: cId, 
+                        moduleId: mId, 
+                        id: nextDoc.id, 
+                        title: nextDoc.data().title 
+                    }
+                });
+                return;
+            }
+
+            // 2. Navigate to Next Module
+            const nextModuleOrder = currentModuleOrder + 1;
+            const modulesRef = collection(firestore, "courses", cId, "modules");
+            const moduleQ = query(modulesRef, where("order", "==", nextModuleOrder), limit(1));
+            const moduleSnap = await getDocs(moduleQ);
+
+            if (!moduleSnap.empty) {
+                const nextModuleDoc = moduleSnap.docs[0];
+                const nextModuleId = nextModuleDoc.id;
+                
+                const nextModLessonsRef = collection(firestore, "courses", cId, "modules", nextModuleId, "lessons");
+                const firstLessonQ = query(nextModLessonsRef, orderBy("order", "asc"), limit(1));
+                const firstLessonSnap = await getDocs(firstLessonQ);
+
+                if (!firstLessonSnap.empty) {
+                    const firstLessonDoc = firstLessonSnap.docs[0];
+                    Alert.alert(
+                        "Level Complete! 🏆", 
+                        `Great job finishing "${title}"! Ready for the next Level?`,
+                        [{ text: "Let's Go! 🚀", onPress: () => {
+                            router.push({
+                                pathname: "/child/course/lesson/[id]",
+                                params: { 
+                                    courseId: cId, 
+                                    moduleId: nextModuleId, 
+                                    id: firstLessonDoc.id, 
+                                    title: firstLessonDoc.data().title 
+                                }
+                            });
+                        }}]
+                    );
+                    return;
+                }
+            }
+
+            // 3. Finish Course
+            // FIX: 'id' in params needs to be string, not string[]
+            Alert.alert("COURSE COMPLETE! 🎉", "You helped Lumo fix the WHOLE Castle!", 
+                [{ 
+                    text: "Back to Menu", 
+                    onPress: () => router.dismissTo({ 
+                        pathname: "/child/course/[id]", 
+                        params: { id: cId, title: title as string } 
+                    }) 
+                }]
             );
 
-            Alert.alert(
-                "Great Job!",
-                `You earned ${points} Points and ${stars} Star!`,
-                [
-                    { text: "Continue", onPress: () => router.back() }
-                ]
-            );
-
-        } catch (error) {
-            console.error(error);
-            Alert.alert("Error", "Could not save progress. Try again.");
-        } finally {
-            setCompleting(false);
-        }
+        } catch (error) { console.error(error); } finally { setCompleting(false); }
     };
 
-    if (loading) {
-        return (
-            <View className="flex-1 justify-center items-center bg-base">
-                <ActivityIndicator size="large" color="#F0E491" />
-            </View>
-        );
-    }
-
+    if (loading) return <ActivityIndicator size="large" className="flex-1 bg-base" />;
     if (!lesson) return null;
 
     return (
         <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
-            <View className="flex-row items-center px-4 py-4 border-b border-gray-100">
+            <View className="flex-row items-center px-4 py-4 border-b border-gray-100 bg-white z-10">
                 <TouchableOpacity onPress={() => router.back()} className="mr-4">
                     <Ionicons name="close" size={28} color="#333" />
                 </TouchableOpacity>
-                <Text className="text-xl font-bold flex-1 text-center mr-8">{title}</Text>
+                <Text className="text-xl font-bold flex-1 text-center mr-8 text-primary">{lesson.title}</Text>
             </View>
 
-            <ScrollView className="flex-1 px-6 py-8">
-                {/* Content Display */}
-                <View className="mb-10">
-                    {lesson.type === 'lesson' && (
-                        <Text className="text-2xl font-medium leading-10 text-gray-800 text-center">
-                            {lesson.content}
-                        </Text>
+            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                
+                {/* --- BRIDGE LEVEL ANIMATION AREA --- */}
+                {isBridgeLevel && (
+                    <View className="h-40 bg-sky-200 relative overflow-hidden mb-4 w-full">
+                        <View className="absolute top-4 left-10"><Ionicons name="cloud" size={40} color="white" /></View>
+                        <View className="absolute top-10 right-20"><Ionicons name="cloud" size={30} color="white" /></View>
+                        <View className="absolute bottom-0 w-full h-12 bg-blue-400" />
+                        <Animated.View style={{ position: 'absolute', bottom: 15, left: lumoPosition, zIndex: 10 }}>
+                            <Ionicons name="happy" size={50} color="#673AB7" />
+                        </Animated.View>
+                    </View>
+                )}
+
+                <View className="px-6 py-4">
+                    {/* STORY INTRO */}
+                    {lesson.type === 'story_intro' && (
+                        <View className="items-center mt-4">
+                            <View className="bg-purple-100 p-8 rounded-full mb-6 border-4 border-purple-200 shadow-sm">
+                                <Ionicons name="happy" size={80} color="#673AB7" />
+                            </View>
+                            <Text className="text-2xl font-medium text-center mt-2 leading-9 text-gray-800">{lesson.content}</Text>
+                        </View>
                     )}
 
-                    {lesson.type === 'exercise' && (
+                    {/* LOGIC PATTERN */}
+                    {lesson.type === 'logic_pattern' && lesson.data && (
                         <View>
-                            <Text className="text-2xl font-bold text-center mb-8">{lesson.question}</Text>
-                            {/* Placeholder Input/Interaction for now simply displaying Answer button */}
-                            <View className="bg-gray-100 p-6 rounded-xl">
-                                <Text className="text-gray-500 text-center italic">Answer: {lesson.answer}</Text>
+                            <Text className="text-2xl font-bold text-center mb-6">{lesson.question}</Text>
+                            <View className={`flex-row justify-center items-end p-4 rounded-xl mb-10 flex-wrap min-h-[100px] ${isBridgeLevel ? 'bg-transparent' : 'bg-gray-50 border-2 border-dashed border-gray-200'}`}>
+                                {lesson.data.sequence.map((item: string, index: number) => (
+                                    <View key={index} className="m-1 items-center">
+                                        {item === "?" ? (
+                                            <Animated.View style={{ transform: [{ scale: isCorrect ? scaleAnim : 1 }] }}>
+                                                <View className={`w-16 h-16 rounded-lg justify-center items-center shadow-sm border-b-4 ${isCorrect ? 'bg-green-400 border-green-600' : 'bg-gray-200 border-gray-300 border-dashed'}`}>
+                                                    <Text className="text-4xl">{isCorrect ? lesson.data.correctAnswer : "?"}</Text>
+                                                </View>
+                                            </Animated.View>
+                                        ) : (
+                                            <View className={`w-16 h-16 rounded-lg justify-center items-center shadow-sm border-b-4 bg-white border-gray-300`}>
+                                                <Text className="text-4xl">{item}</Text>
+                                            </View>
+                                        )}
+                                        {isBridgeLevel && <View className="h-4 w-2 bg-gray-400 mt-[-2px]" />} 
+                                    </View>
+                                ))}
+                            </View>
+
+                            <Text className="text-center text-gray-400 font-bold mb-4 uppercase text-xs tracking-widest">Tap to Fix/Solve</Text>
+                            <View className="flex-row justify-center gap-4">
+                                {lesson.data.options.map((option: string, index: number) => {
+                                    const isSelected = selectedOption === option;
+                                    const isThisCorrect = option === lesson.data.correctAnswer;
+                                    const animatedStyle = (isSelected && !isThisCorrect) ? { transform: [{ translateX: shakeAnim }] } : {};
+
+                                    return (
+                                        <Animated.View key={index} style={animatedStyle}>
+                                            <TouchableOpacity onPress={() => handlePatternSelect(option)} disabled={isCorrect}
+                                                className={`w-20 h-20 rounded-xl justify-center items-center border-b-4 shadow-md ${isSelected ? (isThisCorrect ? 'bg-green-100 border-green-500' : 'bg-red-100 border-red-500') : 'bg-white border-gray-200'}`}>
+                                                <Text className="text-4xl">{option}</Text>
+                                            </TouchableOpacity>
+                                        </Animated.View>
+                                    );
+                                })}
                             </View>
                         </View>
                     )}
-                </View>
 
-                {/* Rewards Preview */}
-                <View className="flex-row justify-center space-x-8 mb-10">
-                    <View className="items-center">
-                        <Ionicons name="trophy" size={32} color="#F0E491" />
-                        <Text className="font-bold text-gray-600 mt-1">+{lesson.points} Pts</Text>
-                    </View>
-                    <View className="items-center">
-                        <Ionicons name="star" size={32} color="#F0E491" />
-                        <Text className="font-bold text-gray-600 mt-1">+{lesson.stars} Star</Text>
-                    </View>
+                    {/* LOGIC SORTING */}
+                    {lesson.type === 'logic_sorting' && lesson.data && (
+                        <View>
+                            <Text className="text-2xl font-bold text-center mb-8">{lesson.question}</Text>
+                            <View className="flex-row flex-wrap justify-center gap-4">
+                                {lesson.data.items.map((item: string, index: number) => {
+                                    const isSelected = selectedOption === item;
+                                    const isThisCorrect = item === lesson.data.correctAnswer;
+                                    const animatedStyle = (isSelected && !isThisCorrect) ? { transform: [{ translateX: shakeAnim }] } : {};
+
+                                    return (
+                                        <Animated.View key={index} style={animatedStyle}>
+                                            <TouchableOpacity onPress={() => handleSortingSelect(item)}
+                                                className={`w-20 h-20 rounded-xl justify-center items-center border-b-4 ${isSelected ? (isThisCorrect ? 'bg-green-100 border-green-500' : 'bg-red-100 border-red-500') : 'bg-white border-gray-200'}`}>
+                                                <Text className="text-4xl">{item}</Text>
+                                            </TouchableOpacity>
+                                        </Animated.View>
+                                    );
+                                })}
+                            </View>
+                        </View>
+                    )}
+                    {/* LOGIC DRAG (BRIDGE GAME) */}
+{lesson.type === "logic_drag" && lesson.data && (
+    <View>
+        <Text className="text-2xl font-bold text-center mb-6">
+            {lesson.question}
+        </Text>
+
+        {/* Bridge */}
+        <View className="flex-row justify-center mb-12">
+            {lesson.data.sequence.map((item: string, index: number) => (
+                <View
+                    key={index}
+                    className={`w-16 h-16 mx-1 rounded-lg justify-center items-center border-2 ${
+                        item === "?" ? "border-dashed border-gray-400" : "bg-white border-gray-300"
+                    }`}
+                >
+                    <Text className="text-4xl">
+                        {item === "?" && isCorrect
+                            ? lesson.data.correctAnswer
+                            : item}
+                    </Text>
+                </View>
+            ))}
+        </View>
+
+            {/* Draggable Options */}
+            <View className="flex-row justify-center gap-6">
+                {lesson.data.draggableOptions.map((option: string) =>
+                    draggedItem === option || draggedItem === null ? (
+                        <Animated.View
+                            key={option}
+                            {...panResponder.panHandlers}
+                            style={[
+                                dragPosition.getLayout(),
+                                { opacity: isCorrect ? 0.5 : 1 }
+                            ]}
+                        >
+                            <TouchableOpacity
+                                disabled={isCorrect}
+                                onPressIn={() => setDraggedItem(option)}
+                                className="w-20 h-20 rounded-xl bg-yellow-100 border-b-4 border-yellow-400 justify-center items-center shadow-md"
+                            >
+                                <Text className="text-4xl">{option}</Text>
+                            </TouchableOpacity>
+                        </Animated.View>
+                    ) : null
+                )}
+            </View>
+
+                </View>
+            )}
+
+
+                    {/* LOGIC SEQUENCING */}
+                    {lesson.type === 'logic_sequencing' && lesson.data && (
+                        <View>
+                            <Text className="text-xl font-bold text-center mb-4">{lesson.question}</Text>
+                            <View className="flex-row justify-center mb-8 bg-gray-50 p-4 rounded-xl flex-wrap gap-2">
+                                {lesson.data.correctOrder.map((_: any, index: number) => (
+                                    <Animated.View key={index} style={{ transform: [{ scale: completedSequence[index] ? scaleAnim : 1 }] }}>
+                                        <View className={`w-16 h-16 rounded-xl justify-center items-center border-2 ${completedSequence[index] ? 'bg-green-100 border-green-500' : 'border-dashed border-gray-300'}`}>
+                                            <Text className="text-3xl">{completedSequence[index] || (index + 1)}</Text>
+                                        </View>
+                                    </Animated.View>
+                                ))}
+                            </View>
+                            <View className="flex-row justify-center gap-4 flex-wrap">
+                                {lesson.data.scrambled.map((item: string, index: number) => {
+                                    const isUsed = completedSequence.includes(item);
+                                    return (
+                                        <Animated.View key={index} style={(!isUsed && !isCorrect) ? { transform: [{ translateX: shakeAnim }] } : {}}> 
+                                            <TouchableOpacity onPress={() => handleSequencingSelect(item)} disabled={isUsed || isCorrect}
+                                                className={`w-16 h-16 rounded-xl justify-center items-center shadow-sm border-b-4 ${isUsed ? 'bg-gray-100 opacity-50 border-gray-200' : 'bg-white border-blue-200'}`}>
+                                                <Text className="text-3xl">{item}</Text>
+                                            </TouchableOpacity>
+                                        </Animated.View>
+                                    );
+                                })}
+                            </View>
+                        </View>
+                    )}
+
+                    {feedbackMsg ? (
+                        <View className={`p-4 rounded-xl mt-6 border-b-4 ${isCorrect ? 'bg-green-100 border-green-200' : 'bg-orange-100 border-orange-200'}`}>
+                            <Text className={`text-center font-bold text-lg ${isCorrect ? 'text-green-700' : 'text-orange-700'}`}>{feedbackMsg}</Text>
+                        </View>
+                    ) : null}
                 </View>
             </ScrollView>
 
-            <View className="p-6 border-t border-gray-100">
-                {role === 'parent' ? (
-                    <View className="bg-gray-100 py-4 rounded-xl">
-                        <Text className="text-gray-500 text-center font-bold text-lg">
-                            Parent View Only
-                        </Text>
-                    </View>
-                ) : (
-                    <TouchableOpacity
-                        className="bg-secondary py-4 rounded-xl shadow-sm active:bg-secondary/80"
-                        onPress={handleComplete}
-                        disabled={completing}
-                    >
-                        {completing ? (
-                            <ActivityIndicator color="#primary" />
-                        ) : (
-                            <Text className="text-primary text-center font-bold text-xl uppercase tracking-wider">
-                                Complete
-                            </Text>
-                        )}
-                    </TouchableOpacity>
-                )}
+            <View className="p-6 border-t border-gray-100 bg-white">
+                <TouchableOpacity
+                    className={`py-4 rounded-xl shadow-md border-b-4 active:border-b-0 active:translate-y-1 ${(lesson.type === 'story_intro' || isCorrect) ? 'bg-secondary border-yellow-500' : 'bg-gray-200 border-gray-300'}`}
+                    onPress={handleComplete}
+                    disabled={(!isCorrect && lesson.type !== 'story_intro') || completing}
+                >
+                    {completing ? <ActivityIndicator color="#000" /> : <Text className={`text-center font-bold text-xl uppercase tracking-wider ${(lesson.type === 'story_intro' || isCorrect) ? 'text-primary' : 'text-gray-400'}`}>{lesson.type === 'story_intro' ? "Start Adventure 🚀" : (isCorrect ? "Next Activity ➡️" : "Solve to Continue")}</Text>}
+                </TouchableOpacity>
             </View>
         </SafeAreaView>
     );
