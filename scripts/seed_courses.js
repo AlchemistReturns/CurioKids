@@ -407,29 +407,106 @@ const courses = [
     {
         id: "fun_numbers",
         title: "Fun with Numbers",
-        description: "Learn counting and basic math with fun visuals!",
+        description: "Tracing Numbers",
         icon: "calculator",
         color: "#4CAF50",
         modules: [
-            {
-                title: "Counting 1-10",
+          {
+                title: "Writing Time! ✍️",
                 order: 1,
                 lessons: [
-                    {
-                        title: "Numbers 1 to 5",
-                        type: "lesson",
-                        content: "Let's count! 1, 2, 3, 4, 5. Can you count your fingers?",
-                        points: 10, stars: 1, order: 1
+                                       {
+                        title: "Trace Number 0",
+                        type: "tracing", // NEW TYPE
+                        // We inject the complex path data directly into Firestore
+                        data: TRACING_DATA.number_0,
+                        points: 15, 
+                        stars: 2, 
+                        order: 1
                     },
-                    {
-                        title: "Quiz: 1 to 5",
-                        type: "exercise",
-                        question: "How many fingers do you have on one hand?",
-                        answer: "5",
-                        points: 20, stars: 2, order: 2
-                    }
-                ]
-            }
+                                       {
+                        title: "Trace Number 1",
+                        type: "tracing", // NEW TYPE
+                        // We inject the complex path data directly into Firestore
+                        data: TRACING_DATA.number_1, 
+                        points: 15, 
+                        stars: 2, 
+                        order: 2
+                    },
+                                       {
+                        title: "Trace Number 2",
+                        type: "tracing", // NEW TYPE
+                        // We inject the complex path data directly into Firestore
+                        data: TRACING_DATA.number_2, 
+                        points: 15, 
+                        stars: 2, 
+                        order: 3
+                    },
+                                       {
+                        title: "Trace Number 3",
+                        type: "tracing", // NEW TYPE
+                        // We inject the complex path data directly into Firestore
+                        data: TRACING_DATA.number_3, 
+                        points: 15, 
+                        stars: 2, 
+                        order: 4
+                    },
+                                       {
+                        title: "Trace Number 4",
+                        type: "tracing", // NEW TYPE
+                        // We inject the complex path data directly into Firestore
+                        data: TRACING_DATA.number_4, 
+                        points: 15, 
+                        stars: 2, 
+                        order: 5
+                    },
+                                       {
+                        title: "Trace Number 5",
+                        type: "tracing", // NEW TYPE
+                        // We inject the complex path data directly into Firestore
+                        data: TRACING_DATA.number_5, 
+                        points: 15, 
+                        stars: 2, 
+                        order: 6
+                    },
+                                       {
+                        title: "Trace Number 6",
+                        type: "tracing", // NEW TYPE
+                        // We inject the complex path data directly into Firestore
+                        data: TRACING_DATA.number_6, 
+                        points: 15, 
+                        stars: 2, 
+                        order: 7
+                    },
+                                       {
+                        title: "TTrace Number 7",
+                        type: "tracing", // NEW TYPE
+                        // We inject the complex path data directly into Firestore
+                        data: TRACING_DATA.number_7, 
+                        points: 15, 
+                        stars: 2, 
+                        order: 8
+                    },
+                                       {
+                        title: "Trace Number 8",
+                        type: "tracing", // NEW TYPE
+                        // We inject the complex path data directly into Firestore
+                        data: TRACING_DATA.number_8, 
+                        points: 15, 
+                        stars: 2, 
+                        order: 9
+                    },
+                                       {
+                        title: "Trace Number 9",
+                        type: "tracing", // NEW TYPE
+                        // We inject the complex path data directly into Firestore
+                        data: TRACING_DATA.number_9, 
+                        points: 15, 
+                        stars: 2, 
+                        order: 10
+                    },
+                  ]
+          }
         ]
     },
 
@@ -679,96 +756,7 @@ const courses = [
                         stars: 2, 
                         order: 26
                     },
-                                       {
-                        title: "Trace Number 0",
-                        type: "tracing", // NEW TYPE
-                        // We inject the complex path data directly into Firestore
-                        data: TRACING_DATA.number_0,
-                        points: 15, 
-                        stars: 2, 
-                        order: 27
-                    },
-                                       {
-                        title: "Trace Number 1",
-                        type: "tracing", // NEW TYPE
-                        // We inject the complex path data directly into Firestore
-                        data: TRACING_DATA.number_1, 
-                        points: 15, 
-                        stars: 2, 
-                        order: 28
-                    },
-                                       {
-                        title: "Trace Number 2",
-                        type: "tracing", // NEW TYPE
-                        // We inject the complex path data directly into Firestore
-                        data: TRACING_DATA.number_2, 
-                        points: 15, 
-                        stars: 2, 
-                        order: 29
-                    },
-                                       {
-                        title: "Trace Number 3",
-                        type: "tracing", // NEW TYPE
-                        // We inject the complex path data directly into Firestore
-                        data: TRACING_DATA.number_3, 
-                        points: 15, 
-                        stars: 2, 
-                        order: 30
-                    },
-                                       {
-                        title: "Trace Number 4",
-                        type: "tracing", // NEW TYPE
-                        // We inject the complex path data directly into Firestore
-                        data: TRACING_DATA.number_4, 
-                        points: 15, 
-                        stars: 2, 
-                        order: 31
-                    },
-                                       {
-                        title: "Trace Number 5",
-                        type: "tracing", // NEW TYPE
-                        // We inject the complex path data directly into Firestore
-                        data: TRACING_DATA.number_5, 
-                        points: 15, 
-                        stars: 2, 
-                        order: 32
-                    },
-                                       {
-                        title: "Trace Number 6",
-                        type: "tracing", // NEW TYPE
-                        // We inject the complex path data directly into Firestore
-                        data: TRACING_DATA.number_6, 
-                        points: 15, 
-                        stars: 2, 
-                        order: 33
-                    },
-                                       {
-                        title: "TTrace Number 7",
-                        type: "tracing", // NEW TYPE
-                        // We inject the complex path data directly into Firestore
-                        data: TRACING_DATA.number_7, 
-                        points: 15, 
-                        stars: 2, 
-                        order: 34
-                    },
-                                       {
-                        title: "Trace Number 8",
-                        type: "tracing", // NEW TYPE
-                        // We inject the complex path data directly into Firestore
-                        data: TRACING_DATA.number_8, 
-                        points: 15, 
-                        stars: 2, 
-                        order: 35
-                    },
-                                       {
-                        title: "Trace Number 9",
-                        type: "tracing", // NEW TYPE
-                        // We inject the complex path data directly into Firestore
-                        data: TRACING_DATA.number_9, 
-                        points: 15, 
-                        stars: 2, 
-                        order: 36
-                    },
+
                 ]
             }
         ]

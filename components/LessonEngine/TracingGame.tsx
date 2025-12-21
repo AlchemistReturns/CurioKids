@@ -16,7 +16,6 @@ const REVEAL_SIZE = 70;
 const TOUCH_TOLERANCE = 60; 
 
 // --- HELPER: MATH FOR FAST SWIPES ---
-// 'worklet' directive is required to run this on the UI thread without crashing
 const distanceToSegment = (p: {x: number, y: number}, v: {x: number, y: number}, w: {x: number, y: number}) => {
     'worklet'; 
     const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
@@ -56,9 +55,12 @@ export default function TracingGame({ data, onComplete, onExit }: TracingGamePro
   const fingerY = useSharedValue(0);
   const dotScale = useSharedValue(1);
 
-  // --- CRITICAL CRASH FIX: DATA BRIDGING ---
-  // Gestures run on the UI thread. They CANNOT read `data.strokes` (JS object) directly.
-  // We must copy the relevant data to SharedValues so the UI thread can access it safely.
+  // --- FIX START: TRANSITION LOCK ---
+  // This value locks the gesture handler while the next stroke is loading
+  const isTransitioning = useSharedValue(false);
+  // --- FIX END ---
+
+  // DATA BRIDGING
   const currentWaypointsSV = useSharedValue<any[]>([]);
   const currentTargetIndexSV = useSharedValue(0);
 
@@ -69,6 +71,9 @@ export default function TracingGame({ data, onComplete, onExit }: TracingGamePro
     if (currentStroke) {
         currentWaypointsSV.value = currentStroke.waypoints;
         currentTargetIndexSV.value = 0; // Reset target to first point
+        
+        // --- FIX: Unlock gestures only when new data is ready ---
+        isTransitioning.value = false;
     }
   }, [currentStroke, strokeIndex]);
 
@@ -95,6 +100,7 @@ export default function TracingGame({ data, onComplete, onExit }: TracingGamePro
     completedPath.value = Skia.Path.Make(); 
     userPath.value = Skia.Path.Make();
     isDrawing.value = false;
+    isTransitioning.value = false; // Ensure lock is off on reset
   };
 
   useEffect(() => {
@@ -165,6 +171,9 @@ export default function TracingGame({ data, onComplete, onExit }: TracingGamePro
   const pan = Gesture.Pan()
     .minDistance(1)
     .onStart((g) => {
+       // Check if locked
+       if (isTransitioning.value) return;
+
        // Access data via SharedValue (Safe for UI Thread)
        const points = currentWaypointsSV.value;
        if (points.length === 0) return;
@@ -183,6 +192,8 @@ export default function TracingGame({ data, onComplete, onExit }: TracingGamePro
     })
     .onUpdate((g) => {
         if (!isDrawing.value) return;
+        // --- FIX: Stop processing if we are transitioning ---
+        if (isTransitioning.value) return;
 
         const prevX = fingerX.value;
         const prevY = fingerY.value;
@@ -213,6 +224,8 @@ export default function TracingGame({ data, onComplete, onExit }: TracingGamePro
                 const isLastPoint = targetIdx === points.length - 1;
                 
                 if (isLastPoint) {
+                    // --- FIX: Lock immediately so multiple hits are impossible ---
+                    isTransitioning.value = true;
                     runOnJS(handleStrokeSuccess)();
                 } else {
                     // Update JS state (for Logic)
@@ -224,7 +237,7 @@ export default function TracingGame({ data, onComplete, onExit }: TracingGamePro
         }
     })
     .onEnd(() => {
-        if (isDrawing.value) {
+        if (isDrawing.value && !isTransitioning.value) {
             runOnJS(handleMistake)();
         }
     });
