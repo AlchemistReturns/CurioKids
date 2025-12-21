@@ -6,6 +6,7 @@ import {
     ActivityIndicator,
     Alert,
     Animated,
+    Dimensions,
     LayoutAnimation,
     Platform,
     Text,
@@ -15,13 +16,15 @@ import {
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth, firestore } from "../../../../config/firebase"; // Check your path!
-import { ChildProgressService } from "../../../../services/ChildProgressService"; // Check your path!
+import { auth, firestore } from "../../../../config/firebase";
+import { ChildProgressService } from "../../../../services/ChildProgressService";
 
-// --- 🔊 IMPORT YOUR AUDIO MANAGER ---
+// --- 🔊 AUDIO MANAGER ---
+// Make sure this path is correct based on your folder structure!
 import { audioManager } from "@/components/LessonEngine/AudioManager";
 
 // Game Components
+import BalanceScaleGame from "@/components/LessonEngine/BalanceScaleGame";
 import BubblePopGame from "@/components/LessonEngine/BubblePopGame";
 import TracingGame, { GameResult } from "@/components/LessonEngine/TracingGame";
 
@@ -29,6 +32,8 @@ import TracingGame, { GameResult } from "@/components/LessonEngine/TracingGame";
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+const { width } = Dimensions.get("window");
 
 // --- 🤖 LUMO THE ROBOT COMPONENT ---
 const LumoAvatar = ({ mood }: { mood: 'happy' | 'thinking' | 'sad' | 'success' }) => {
@@ -84,6 +89,7 @@ export default function LessonScreen() {
     const [currentModuleOrder, setCurrentModuleOrder] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [completing, setCompleting] = useState(false);
+    const hasExited = useRef(false);
     
     // Game Logic State
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -97,9 +103,8 @@ export default function LessonScreen() {
     // --- ANIMATION VALUES ---
     const shakeAnim = useRef(new Animated.Value(0)).current; 
     
-    // 🔊 LOAD SOUNDS ON START
-    useEffect(() => {
-        audioManager.loadSounds(); // Preload SFX
+    useEffect(() => { 
+        audioManager.loadSounds(); // Ensure SFX are loaded
         fetchLesson(); 
     }, [id]);
 
@@ -138,9 +143,7 @@ export default function LessonScreen() {
     // --- ANIMATION & SOUND FUNCTIONS ---
     const triggerShake = () => {
         setLumoMood('sad');
-        // 🔊 Play FAIL sound (from your AudioManager)
-        audioManager.play('boing'); 
-        
+        audioManager.play('boing'); // 🔊 Fail Sound
         Animated.sequence([
             Animated.timing(shakeAnim, { toValue: 15, duration: 50, useNativeDriver: true }),
             Animated.timing(shakeAnim, { toValue: -15, duration: 50, useNativeDriver: true }),
@@ -151,9 +154,7 @@ export default function LessonScreen() {
 
     const triggerSuccess = () => {
         setLumoMood('success');
-        // 🔊 Play SUCCESS sound (Using the same key as TracingGame)
-        audioManager.play('correct'); 
-        
+        audioManager.play('correct'); // 🔊 Success Sound
         LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
     };
 
@@ -194,7 +195,7 @@ export default function LessonScreen() {
                 triggerSuccess();
             } else {
                 setLumoMood('happy');
-                audioManager.play('pop'); // 🔊 Play pop for partial steps
+                audioManager.play('pop'); // 🔊 Pop sound for partial steps
                 setTimeout(() => setLumoMood('thinking'), 800);
             }
         } else {
@@ -202,12 +203,42 @@ export default function LessonScreen() {
         }
     };
 
-    // --- NAVIGATION LOGIC ---
+    // --- SAVING & NAVIGATION ---
     const navigateToNextLesson = async () => {
         try {
             const cId = courseId as string;
             const mId = moduleId as string;
 
+            // STORY OUTRO SPECIAL LOGIC
+            if (lesson.type === 'story_outro') {
+                if (currentModuleOrder === 4) {
+                    router.replace({ pathname: "/(tabs)/courses" });
+                    return;
+                } else {
+                    const nextModuleOrder = currentModuleOrder + 1;
+                    const modulesRef = collection(firestore, "courses", cId, "modules");
+                    const moduleQ = query(modulesRef, where("order", "==", nextModuleOrder), limit(1));
+                    const moduleSnap = await getDocs(moduleQ);
+
+                    if (!moduleSnap.empty) {
+                        const nextModuleId = moduleSnap.docs[0].id;
+                        const nextModLessonsRef = collection(firestore, "courses", cId, "modules", nextModuleId, "lessons");
+                        const firstLessonQ = query(nextModLessonsRef, orderBy("order", "asc"), limit(1));
+                        const firstLessonSnap = await getDocs(firstLessonQ);
+
+                        if (!firstLessonSnap.empty) {
+                            const firstLessonDoc = firstLessonSnap.docs[0];
+                            router.replace({
+                                pathname: "/child/course/lesson/[id]",
+                                params: { courseId: cId, moduleId: nextModuleId, id: firstLessonDoc.id, title: firstLessonDoc.data().title }
+                            });
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // STANDARD NEXT LESSON
             const nextLessonOrder = lesson.order + 1;
             const lessonsRef = collection(firestore, "courses", cId, "modules", mId, "lessons");
             const lessonQ = query(lessonsRef, where("order", "==", nextLessonOrder), limit(1));
@@ -215,53 +246,40 @@ export default function LessonScreen() {
 
             if (!lessonSnap.empty) {
                 const nextDoc = lessonSnap.docs[0];
-                router.push({
+                router.replace({
                     pathname: "/child/course/lesson/[id]",
                     params: { courseId: cId, moduleId: mId, id: nextDoc.id, title: nextDoc.data().title }
                 });
                 return;
             }
 
-            const nextModuleOrder = currentModuleOrder + 1;
-            const modulesRef = collection(firestore, "courses", cId, "modules");
-            const moduleQ = query(modulesRef, where("order", "==", nextModuleOrder), limit(1));
-            const moduleSnap = await getDocs(moduleQ);
-
-            if (!moduleSnap.empty) {
-                const nextModuleDoc = moduleSnap.docs[0];
-                const nextModuleId = nextModuleDoc.id;
-                const nextModLessonsRef = collection(firestore, "courses", cId, "modules", nextModuleId, "lessons");
-                const firstLessonQ = query(nextModLessonsRef, orderBy("order", "asc"), limit(1));
-                const firstLessonSnap = await getDocs(firstLessonQ);
-
-                if (!firstLessonSnap.empty) {
-                    const firstLessonDoc = firstLessonSnap.docs[0];
-                    Alert.alert("Level Complete! 🏆", "Ready for the next Level?",
-                        [{ text: "Let's Go! 🚀", onPress: () => {
-                            router.push({
-                                pathname: "/child/course/lesson/[id]",
-                                params: { courseId: cId, moduleId: nextModuleId, id: firstLessonDoc.id, title: firstLessonDoc.data().title }
-                            });
-                        }}]
-                    );
-                    return;
-                }
-            }
-
-            Alert.alert("COURSE COMPLETE! 🎉", "You finished the section!", 
-                [{ text: "Back to Menu", onPress: () => router.dismissTo({ pathname: "/child/course/[id]", params: { id: cId, title: title as string } }) }]
+            // MODULE COMPLETE
+            Alert.alert("Module Complete! 🏆", "Great work! Ready for the next challenge?",
+                [{ 
+                    text: "Continue", 
+                    onPress: () => {
+                        router.replace({
+                            pathname: "/child/course/[id]",
+                            params: { id: cId, title: title as string }
+                        });
+                    }
+                }]
             );
-        } catch (error) { console.error("Navigation Error", error); }
+        } catch (error) { 
+            console.error("Navigation Error", error);
+            router.replace({
+                pathname: "/child/course/[id]",
+                params: { id: courseId as string, title: title as string }
+            });
+        }
     };
 
     const handleComplete = async () => {
         if (!auth.currentUser) return;
-        const isGame = ['logic_pattern', 'logic_sorting', 'logic_sequencing', 'logic_drag', 'story_intro'].includes(lesson.type);
         
-        if (isGame && lesson.type !== 'story_intro' && !isCorrect) { 
-            triggerShake(); 
-            return; 
-        }
+        // Ensure Logic games are actually solved
+        const isGame = ['logic_pattern', 'logic_sorting', 'logic_sequencing', 'logic_drag'].includes(lesson.type);
+        if (isGame && !isCorrect) { triggerShake(); return; }
 
         setCompleting(true);
         try {
@@ -270,26 +288,49 @@ export default function LessonScreen() {
         } catch (error) { console.error(error); } finally { setCompleting(false); }
     };
 
-    const handleExternalGameComplete = async (score: number, stars: number) => {
-        if (!auth.currentUser) return;
+    // --- EXTERNAL GAME HANDLERS ---
+    const handleTracingComplete = async (result: GameResult) => {
+        if (!auth.currentUser || hasExited.current) return;
         setCompleting(true);
         try {
-            await ChildProgressService.markItemComplete(auth.currentUser.uid, id as string, score, stars);
-            setIsCorrect(true);
+            await ChildProgressService.markItemComplete(auth.currentUser.uid, id as string, result.score || lesson.points, result.stars || 3);
             await navigateToNextLesson();
-        } catch (error) { console.error(error); } finally { setCompleting(false); }
+        } catch (e) { console.error(e); } finally { setCompleting(false); }
     };
+
+    const handleBubbleComplete = async (score: number, stars: number) => {
+        if (!auth.currentUser || hasExited.current) return;
+        setCompleting(true);
+        try {
+            await ChildProgressService.markItemComplete(auth.currentUser.uid, id as string, score || 50, stars || 3);
+            await navigateToNextLesson();
+        } catch (e) { console.error(e); } finally { setCompleting(false); }
+    };
+
+    const handleBalanceComplete = async (score: number, stars: number) => {
+        if (!auth.currentUser || hasExited.current) return;
+        setCompleting(true);
+        try {
+            await ChildProgressService.markItemComplete(auth.currentUser.uid, id as string, score || 50, stars || 3);
+            await navigateToNextLesson();
+        } catch (e) { console.error(e); } finally { setCompleting(false); }
+    };
+
 
     if (loading) return <ActivityIndicator size="large" className="flex-1 bg-white justify-center items-center" />;
     if (!lesson) return null;
 
-    // --- RENDER HELPERS ---
+    // ==========================================
+    // 🎮 GAME MODE RENDERERS (THE LUMO THEME)
+    // ==========================================
+
     const renderPatternGame = () => {
+        // Support both "options" (Pattern) and "draggableOptions" (Drag converted to Tap)
         const currentOptions = lesson.data.options || lesson.data.draggableOptions || [];
         
         return (
             <View className="flex-1 items-center justify-center">
-                <View className="flex-row gap-2 mb-10 p-4 bg-white/30 rounded-2xl flex-wrap justify-center">
+                <View className="flex-row gap-2 mb-10 p-4 bg-white/30 rounded-2xl flex-wrap justify-center min-h-[100px]">
                     {lesson.data.sequence.map((item: string, index: number) => {
                         const isMissingSlot = item === "?";
                         return (
@@ -305,9 +346,10 @@ export default function LessonScreen() {
                     })}
                 </View>
 
+                {/* Options Dock */}
                 <View className="flex-row gap-4 flex-wrap justify-center">
                     {currentOptions.map((option: string, index: number) => {
-                        if (isCorrect && option === lesson.data.correctAnswer) return <View key={index} className="w-20 h-20" />;
+                        if (isCorrect && option === lesson.data.correctAnswer) return <View key={index} className="w-20 h-20" />; // Invisible placeholder
 
                         return (
                             <TouchableOpacity 
@@ -409,11 +451,83 @@ export default function LessonScreen() {
         </View>
     );
 
-    const isGame = ['logic_pattern', 'logic_sorting', 'logic_sequencing', 'logic_drag'].includes(lesson.type);
+    // ==========================================
+    // 🌈 MAIN RENDER SWITCH
+    // ==========================================
 
-    if (isGame) {
+    // 1. TRACING GAME
+    if (lesson.type === 'tracing') {
+        return (
+            <View className="flex-1 bg-[#edf0f7]">
+                <TracingGame 
+                    key={id as string} 
+                    data={lesson.data} 
+                    onComplete={handleTracingComplete}
+                    onExit={() => { hasExited.current = true; router.back(); }}
+                />
+                {completing && (
+                     <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
+                        <ActivityIndicator size="large" color="#FFD700" />
+                        <Text className="text-white font-bold mt-4">Saving...</Text>
+                    </View>
+                )}
+            </View>
+        );
+    }
+
+    // 2. BUBBLE POP GAME
+    if (lesson.type === 'bubble_pop') {
+        return (
+            <View className="flex-1 bg-[#E0F7FA]">
+                <BubblePopGame 
+                    onComplete={handleBubbleComplete}
+                    onExit={() => { hasExited.current = true; router.back(); }}
+                />
+                 {completing && (
+                     <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
+                        <ActivityIndicator size="large" color="#FFD700" />
+                        <Text className="text-white font-bold mt-4">Great Job! Saving...</Text>
+                    </View>
+                )}
+            </View>
+        );
+    }
+
+    // 3. BALANCE SCALE GAME
+    if (lesson.type === 'balance_scale') {
+        return (
+            <View className="flex-1 bg-[#FFF8E1]">
+                <BalanceScaleGame
+                    leftTotal={lesson.data?.leftTotal || 10}
+                    rightTotal={lesson.data?.rightTotal}
+                    availableWeights={lesson.data?.availableWeights || [5, 10]}
+                    theme={lesson.data?.theme}
+                    mascot={lesson.data?.mascot}
+                    mode={lesson.data?.mode}
+                    mysterySlots={lesson.data?.mysterySlots}
+                    fruitConversion={lesson.data?.fruitConversion}
+                    leftDisplay={lesson.data?.leftDisplay}
+                    hint={lesson.data?.hint}
+                    onComplete={handleBalanceComplete}
+                    onExit={() => { hasExited.current = true; router.back(); }}
+                />
+                {completing && (
+                    <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
+                        <ActivityIndicator size="large" color="#FFD700" />
+                        <Text className="text-white font-bold mt-4">Perfect Balance! Saving...</Text>
+                    </View>
+                )}
+            </View>
+        );
+    }
+
+    // 4. LOGIC GAMES (THE GAME ARENA / LUMO THEME)
+    const isLogicGame = ['logic_pattern', 'logic_sorting', 'logic_sequencing', 'logic_drag'].includes(lesson.type);
+
+    if (isLogicGame) {
         return (
             <SafeAreaView className="flex-1 bg-[#673AB7]" edges={['top', 'bottom']}> 
+                {/* Header */}
                 <View className="flex-row justify-between items-center px-4 py-2">
                     <TouchableOpacity onPress={() => router.back()} className="bg-white/20 p-2 rounded-full">
                         <Ionicons name="arrow-back" size={24} color="white" />
@@ -424,21 +538,25 @@ export default function LessonScreen() {
                     <View className="w-10" /> 
                 </View>
 
+                {/* Question */}
                 <View className="px-6 py-4 min-h-[100px] justify-center items-center">
                     <Text className="text-white text-2xl font-bold text-center leading-8 shadow-black shadow-sm">
                         {lesson.question}
                     </Text>
                 </View>
 
+                {/* Main Game Area */}
                 <View className="flex-1 w-full relative">
                     <View className="absolute top-0 right-4 z-10">
                         <LumoAvatar mood={lumoMood} />
                     </View>
+                    
                     {(lesson.type === 'logic_pattern' || lesson.type === 'logic_drag') && renderPatternGame()}
                     {lesson.type === 'logic_sorting' && renderSortingGame()}
                     {lesson.type === 'logic_sequencing' && renderSequencingGame()}
                 </View>
 
+                {/* Footer */}
                 <View className="p-6">
                     {isCorrect ? (
                         <TouchableOpacity 
@@ -463,56 +581,30 @@ export default function LessonScreen() {
         );
     }
 
+    // 5. STORY MODE (WITH LUMO INTEGRATION)
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
-                {lesson.type !== 'tracing' && lesson.type !== 'bubble_pop' && (
-                    <View className="flex-row items-center px-4 py-4 border-b border-gray-100 bg-white z-10">
-                        <TouchableOpacity onPress={() => router.back()} className="mr-4">
-                            <Ionicons name="close" size={28} color="#333" />
-                        </TouchableOpacity>
-                        <Text className="text-xl font-bold flex-1 text-center mr-8 text-primary">{lesson.title}</Text>
-                    </View>
-                )}
+                <View className="flex-row items-center px-4 py-4 border-b border-gray-100 bg-white z-10">
+                    <TouchableOpacity onPress={() => router.back()} className="mr-4">
+                        <Ionicons name="close" size={28} color="#333" />
+                    </TouchableOpacity>
+                    <Text className="text-xl font-bold flex-1 text-center mr-8 text-primary">{lesson.title}</Text>
+                </View>
 
-                {lesson.type === 'story_intro' && (
-                    <View className="flex-1 items-center justify-center p-8 bg-purple-50">
-                        <LumoAvatar mood="happy" />
-                        <View className="bg-white p-6 rounded-2xl shadow-sm mt-8 border border-purple-100">
-                            <Text className="text-2xl text-center text-gray-800 leading-9">{lesson.content}</Text>
-                        </View>
-                        <TouchableOpacity 
-                            onPress={handleComplete} 
-                            disabled={completing}
-                            className="mt-10 bg-purple-600 px-10 py-4 rounded-full shadow-lg border-b-4 border-purple-800 active:translate-y-1"
-                        >
-                             {completing ? <ActivityIndicator color="white" /> : <Text className="text-white text-xl font-bold">Let's Go! 🚀</Text>}
-                        </TouchableOpacity>
+                <View className="flex-1 items-center justify-center p-8 bg-purple-50">
+                    <LumoAvatar mood={lesson.type === 'story_outro' ? 'success' : 'happy'} />
+                    <View className="bg-white p-6 rounded-2xl shadow-sm mt-8 border border-purple-100">
+                        <Text className="text-2xl text-center text-gray-800 leading-9">{lesson.content}</Text>
                     </View>
-                )}
-
-                {lesson.type === 'tracing' && (
-                    <TracingGame 
-                        key={id as string} 
-                        data={lesson.data} 
-                        onComplete={(result: GameResult) => handleExternalGameComplete(result.score || lesson.points, result.stars || 3)}
-                        onExit={() => router.back()}
-                    />
-                )}
-
-                {lesson.type === 'bubble_pop' && (
-                    <BubblePopGame 
-                        onComplete={(score: number, stars: number) => handleExternalGameComplete(score, stars)}
-                        onExit={() => router.back()}
-                    />
-                )}
-                
-                {completing && (lesson.type === 'tracing' || lesson.type === 'bubble_pop') && (
-                     <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
-                        <ActivityIndicator size="large" color="#FFD700" />
-                        <Text className="text-white font-bold mt-4">Saving Progress...</Text>
-                    </View>
-                )}
+                    <TouchableOpacity 
+                        onPress={handleComplete} 
+                        disabled={completing}
+                        className="mt-10 bg-purple-600 px-10 py-4 rounded-full shadow-lg border-b-4 border-purple-800 active:translate-y-1"
+                    >
+                         {completing ? <ActivityIndicator color="white" /> : <Text className="text-white text-xl font-bold">{lesson.type === 'story_outro' ? "Finish" : "Let's Go! 🚀"}</Text>}
+                    </TouchableOpacity>
+                </View>
             </SafeAreaView>
         </GestureHandlerRootView>
     );

@@ -1004,6 +1004,282 @@ const courses = [
                 ]
             }
         ]
+    }, {
+        id: "balance_buddies",
+        title: "Balance Buddies",
+        description: "Tip the scales to solve the puzzles! Can you become a Balance Champion? ⚖️🏆",
+        icon: "barbell-sharp",
+        color: "#F44336",
+        modules: [
+            // MODULE 1: The Heavy Jungle (Standard Addition)
+            {
+                title: "Module 1: The Heavy Jungle 🐘",
+                order: 1,
+                lessons: [
+                    {
+                        title: "Welcome to the Jungle!",
+                        type: "story_intro",
+                        content: "🐘\n\nHi, I'm Ellie!\n\nLet's play with heavy rocks!\n\n⚖️",
+                        points: 5, stars: 1, order: 1
+                    },
+                    {
+                        title: "Level 1.1: One-to-One",
+                        type: "balance_scale",
+                        question: "The left side has a 3 rock. Find the matching weight!",
+                        data: {
+                            leftTotal: 3,
+                            availableWeights: [3, 5, 7],
+                            targetBalance: 3,
+                            theme: "jungle",
+                            mascot: "elephant",
+                            hint: "Look for the weight that matches the number 3!"
+                        },
+                        points: 20, stars: 2, order: 2
+                    },
+                    {
+                        title: "Level 1.2: Building Numbers",
+                        type: "balance_scale",
+                        question: "Left has 5. Can you make 5 using two weights? (2 + 3 = 5)",
+                        data: {
+                            leftTotal: 5,
+                            availableWeights: [2, 3, 4, 5],
+                            targetBalance: 5,
+                            theme: "jungle",
+                            mascot: "elephant",
+                            hint: "Try combining smaller numbers to make 5!"
+                        },
+                        points: 30, stars: 2, order: 3
+                    },
+                    {
+                        title: "Level 1.3: Big Rocks",
+                        type: "balance_scale",
+                        question: "Left has 10. Use two weights to balance it! (5 + 5 = 10)",
+                        data: {
+                            leftTotal: 10,
+                            availableWeights: [3, 5, 5, 7],
+                            targetBalance: 10,
+                            theme: "jungle",
+                            mascot: "elephant",
+                            hint: "Two equal weights can make 10!"
+                        },
+                        points: 40, stars: 3, order: 4
+                    },
+                    {
+                        title: "Jungle Master!",
+                        type: "story_outro",
+                        content: "🎉\n\nYOU DID IT!\n\n🏆 Jungle Master Badge 🏆\n\n🪨🪨 + 🪨🪨🪨 = 🪨🪨🪨🪨🪨\n\n(2 rocks + 3 rocks = 5 rocks)\n\n🎊🎊🎊",
+                        points: 10, stars: 1, order: 5
+                    }
+                ]
+            },
+            // MODULE 2: The Floating Sky (Visual Subtraction)
+            {
+                title: "Module 2: The Floating Sky 🦅",
+                order: 2,
+                lessons: [
+                    {
+                        title: "Up in the Clouds!",
+                        type: "story_intro",
+                        content: "🦅\n\nHi, I'm Bella!\n\nLet's Fly Away! ☁️ 🚀",
+                        points: 5, stars: 1, order: 1
+                    },
+                    {
+                        title: "Level 2.1: Too Heavy!",
+                        type: "balance_scale",
+                        question: "Right side has 10, but left only has 8. Use a -2 balloon to lift it!",
+                        data: {
+                            leftTotal: 8,
+                            rightTotal: 10,
+                            availableWeights: [-2, -3, -5],
+                            targetBalance: 8,
+                            theme: "sky",
+                            mascot: "bird",
+                            mode: "subtraction",
+                            hint: "Balloons with minus signs lift weight away!"
+                        },
+                        points: 30, stars: 2, order: 2
+                    },
+                    {
+                        title: "Level 2.2: Lift Off",
+                        type: "balance_scale",
+                        question: "Left has 3. Right has 5. Use a -2 balloon to match left!",
+                        data: {
+                            leftTotal: 3,
+                            rightTotal: 5,
+                            availableWeights: [-2, -3, -5],
+                            targetBalance: 3,
+                            theme: "sky",
+                            mascot: "bird",
+                            mode: "subtraction",
+                            hint: "Make the right side lighter to match the left!"
+                        },
+                        points: 40, stars: 2, order: 3
+                    },
+                    {
+                        title: "Level 2.3: Precision Lift",
+                        type: "balance_scale",
+                        question: "Right is 15, Left is 10. Combine balloons to lift 5 away! (15 - 5 = 10)",
+                        data: {
+                            leftTotal: 10,
+                            rightTotal: 15,
+                            availableWeights: [-2, -3, -5, -7],
+                            targetBalance: 10,
+                            theme: "sky",
+                            mascot: "bird",
+                            mode: "subtraction",
+                            hint: "Which balloons add up to -5?"
+                        },
+                        points: 50, stars: 3, order: 4
+                    },
+                    {
+                        title: "Sky Champion!",
+                        type: "story_outro",
+                        content: "🎉\n\nYOU DID IT!\n\n☁️ Sky Champion! ☁️\n\n🪨 + 🎈 = 🪨⬆️\n\n(Heavy Rock + Balloon = Rock Floating Up)\n\nYou are a real Sky Champion now!\n\n🌟🌟🌟",
+                        points: 10, stars: 1, order: 5
+                    }
+                ]
+            },
+            // MODULE 3: The Mystery Cave (Algebraic Logic)
+            {
+                title: "Module 3: The Mystery Cave 🦇",
+                order: 3,
+                lessons: [
+                    {
+                        title: "Into the Dark Cave!",
+                        type: "story_intro",
+                        content: "🦇\n\nI'm Benny!\n\nWhat's in the Box? 📦🔦",
+                        points: 5, stars: 1, order: 1
+                    },
+                    {
+                        title: "Level 3.1: The Single Box",
+                        type: "balance_scale",
+                        question: "Left: 5. Right: 2 + [?]. What goes in the mystery box? (3 + x = 7)",
+                        data: {
+                            leftTotal: 5,
+                            rightTotal: 2,
+                            availableWeights: [1, 3, 4, 5],
+                            targetBalance: 5,
+                            theme: "cave",
+                            mascot: "bat",
+                            mode: "mystery",
+                            mysterySlots: 1,
+                            hint: "What do you add to 2 to make 5?"
+                        },
+                        points: 40, stars: 2, order: 2
+                    },
+                    {
+                        title: "Level 3.2: The Zero Pair",
+                        type: "balance_scale",
+                        question: "Left: 10. Right: 10 + [?]. What's the trick? (10 + x = 10)",
+                        data: {
+                            leftTotal: 10,
+                            rightTotal: 10,
+                            availableWeights: [0, 1, 2, 3],
+                            targetBalance: 10,
+                            theme: "cave",
+                            mascot: "bat",
+                            mode: "mystery",
+                            mysterySlots: 1,
+                            hint: "Sometimes the answer is... nothing at all!"
+                        },
+                        points: 50, stars: 3, order: 3
+                    },
+                    {
+                        title: "Level 3.3: Double Trouble",
+                        type: "balance_scale",
+                        question: "Left: 10. Right: 4 + [?] + [?]. Fill BOTH boxes! (4 + 3 + 3 = 10)",
+                        data: {
+                            leftTotal: 10,
+                            rightTotal: 4,
+                            availableWeights: [2, 3, 3, 5],
+                            targetBalance: 10,
+                            theme: "cave",
+                            mascot: "bat",
+                            mode: "mystery",
+                            mysterySlots: 2,
+                            hint: "You need TWO weights that add up to 6!"
+                        },
+                        points: 60, stars: 3, order: 4
+                    },
+                    {
+                        title: "Cave Explorer!",
+                        type: "story_outro",
+                        content: "🎉\n\nYOU DID IT!\n\n🕵️ Mystery Solved! 🕵️\n\n📦 🔍 3️⃣",
+                        points: 10, stars: 1, order: 5
+                    }
+                ]
+            },
+            // MODULE 4: The Fruit Market (Abstract Logic)
+            {
+                title: "Module 4: The Fruit Market 🐵",
+                order: 4,
+                lessons: [
+                    {
+                        title: "Welcome to the Market!",
+                        type: "story_intro",
+                        content: "🐵\n\nHi, I'm Miko!\n\nLet's Trade Fruit! 🍍 🍌",
+                        points: 5, stars: 1, order: 1
+                    },
+                    {
+                        title: "Level 4.1: Simple Swap",
+                        type: "balance_scale",
+                        question: "Left: 1 Pineapple 🍍. Match it with Cherries! (1 🍍 = 2 🍒)",
+                        data: {
+                            leftTotal: 2,
+                            availableWeights: [1, 1, 1, 1],
+                            targetBalance: 2,
+                            theme: "market",
+                            mascot: "monkey",
+                            mode: "fruit",
+                            fruitConversion: { pineapple: 2, cherry: 1 },
+                            leftDisplay: "pineapple",
+                            hint: "1 Pineapple = 2 Cherries!"
+                        },
+                        points: 40, stars: 2, order: 2
+                    },
+                    {
+                        title: "Level 4.2: Double Deal",
+                        type: "balance_scale",
+                        question: "Left: 2 Pineapples 🍍🍍. How many Cherries? (2 🍍 = 4 🍒)",
+                        data: {
+                            leftTotal: 4,
+                            availableWeights: [1, 1, 1, 1, 1],
+                            targetBalance: 4,
+                            theme: "market",
+                            mascot: "monkey",
+                            mode: "fruit",
+                            fruitConversion: { pineapple: 2, cherry: 1 },
+                            leftDisplay: "pineapple-2",
+                            hint: "Each Pineapple needs 2 Cherries!"
+                        },
+                        points: 50, stars: 3, order: 3
+                    },
+                    {
+                        title: "Level 4.3: Mixed Basket",
+                        type: "balance_scale",
+                        question: "Left: 1 Pineapple 🍍 + 1 Cherry 🍒. Match with Cherries! (🍍 + 🍒 = 3 🍒)",
+                        data: {
+                            leftTotal: 3,
+                            availableWeights: [1, 1, 1, 1],
+                            targetBalance: 3,
+                            theme: "market",
+                            mascot: "monkey",
+                            mode: "fruit",
+                            fruitConversion: { pineapple: 2, cherry: 1 },
+                            leftDisplay: "pineapple-cherry",
+                            hint: "1 Pineapple = 2 Cherries, plus the 1 Cherry = 3 total!"
+                        },
+                        points: 70, stars: 3, order: 4
+                    },
+                    {
+                        title: "Balance Master!",
+                        type: "story_outro",
+                        content: "🧺 Yummy Success! 🧺\n\n🍍 = 🍒🍒\n\n(1 Pineapple = 2 Cherries)\n\n🎉🎉🎉\n\nYou are now a true Balance Master!",
+                        points: 100, stars: 5, order: 5
+                    }
+                ]
+            }
+        ]
     }
 ];
 
