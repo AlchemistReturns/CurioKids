@@ -581,7 +581,24 @@ export default function LessonScreen() {
         );
     }
 
-    // 5. STORY MODE (WITH LUMO INTEGRATION)
+    // 5. STORY MODE (WITH CONDITIONAL LUMO INTEGRATION)
+    const isLogicLandCourse = courseId === 'logic_lumo';
+    const isBalanceBuddiesCourse = courseId === 'balance_buddies';
+    
+    // Get module-specific colors for Balance Buddies
+    const getModuleBackgroundColor = () => {
+        if (isBalanceBuddiesCourse) {
+            switch (currentModuleOrder) {
+                case 1: return 'bg-green-50'; // Light green for Module 1
+                case 2: return 'bg-sky-50'; // Sky color for Module 2
+                case 3: return 'bg-orange-50'; // Light brown for Module 3
+                case 4: return 'bg-yellow-50'; // Yellow for Module 4
+                default: return 'bg-red-50';
+            }
+        }
+        return isLogicLandCourse ? 'bg-purple-50' : 'bg-gray-50';
+    };
+    
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -592,17 +609,25 @@ export default function LessonScreen() {
                     <Text className="text-xl font-bold flex-1 text-center mr-8 text-primary">{lesson.title}</Text>
                 </View>
 
-                <View className="flex-1 items-center justify-center p-8 bg-purple-50">
-                    <LumoAvatar mood={lesson.type === 'story_outro' ? 'success' : 'happy'} />
-                    <View className="bg-white p-6 rounded-2xl shadow-sm mt-8 border border-purple-100">
+                <View className={`flex-1 items-center justify-center p-8 ${getModuleBackgroundColor()}`}>
+                    {isLogicLandCourse && <LumoAvatar mood={lesson.type === 'story_outro' ? 'success' : 'happy'} />}
+                    <View className={`bg-white p-6 rounded-2xl shadow-sm ${isLogicLandCourse ? 'mt-8 border border-purple-100' : isBalanceBuddiesCourse ? 'border border-red-100' : 'border border-gray-100'}`}>
                         <Text className="text-2xl text-center text-gray-800 leading-9">{lesson.content}</Text>
                     </View>
                     <TouchableOpacity 
                         onPress={handleComplete} 
                         disabled={completing}
-                        className="mt-10 bg-purple-600 px-10 py-4 rounded-full shadow-lg border-b-4 border-purple-800 active:translate-y-1"
+                        className={`mt-10 px-10 py-4 rounded-full shadow-lg border-b-4 active:translate-y-1 ${isLogicLandCourse ? 'bg-purple-600 border-purple-800' : isBalanceBuddiesCourse ? 'bg-red-600 border-red-800' : 'bg-blue-600 border-blue-800'}`}
                     >
-                         {completing ? <ActivityIndicator color="white" /> : <Text className="text-white text-xl font-bold">{lesson.type === 'story_outro' ? "Finish" : "Let's Go! 🚀"}</Text>}
+                         {completing ? <ActivityIndicator color="white" /> : (
+                            <Text className="text-white text-xl font-bold">
+                                {lesson.type === 'story_outro' 
+                                    ? (isBalanceBuddiesCourse && currentModuleOrder === 4 
+                                        ? 'Return to courses 📚' 
+                                        : 'Next Adventure! →') 
+                                    : 'Start adventure 🚀'}
+                            </Text>
+                         )}
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
