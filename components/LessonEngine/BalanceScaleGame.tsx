@@ -8,6 +8,7 @@ import Animated, {
     useSharedValue,
     withSpring
 } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("window");
 
@@ -219,16 +220,18 @@ export default function BalanceScaleGame({
                     const score = 50;
                     const stars = 3;
                     onComplete(score, stars);
-                }, 3000);
-            }, 1000);
+                }, 900); // Auto-navigate after showing success (1200ms + 900ms = 2100ms total)
+            }, 1200); // Delay to let scale visually balance before showing success
         }
         
-        // Cleanup timers on unmount or when dependencies change
+        // Cleanup only soundTimerRef on unmount or when dependencies change
+        // DO NOT clear winTimerRef as it needs to complete for auto-navigation
         return () => {
-            if (soundTimerRef.current) clearTimeout(soundTimerRef.current);
-            if (winTimerRef.current) clearTimeout(winTimerRef.current);
+            if (soundTimerRef.current && !showSuccess) {
+                clearTimeout(soundTimerRef.current);
+            }
         };
-    }, [leftTotal, rightTotal, placedWeights, showSuccess]);
+    }, [leftTotal, rightTotal, placedWeights, showSuccess, onComplete]);
 
     const beamStyle = useAnimatedStyle(() => {
         return {
@@ -332,17 +335,18 @@ export default function BalanceScaleGame({
     };
 
     return (
-        <GestureHandlerRootView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => {
-                    if (soundTimerRef.current) clearTimeout(soundTimerRef.current);
-                    if (winTimerRef.current) clearTimeout(winTimerRef.current);
-                    onExit();
-                }} style={styles.exitButton}>
-                    <Ionicons name="close" size={28} color="#333" />
-                </TouchableOpacity>
-                <Text style={styles.headerText}>Balance the Scale!</Text>
-            </View>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => {
+                        if (soundTimerRef.current) clearTimeout(soundTimerRef.current);
+                        if (winTimerRef.current) clearTimeout(winTimerRef.current);
+                        onExit();
+                    }} style={styles.exitButton}>
+                        <Ionicons name="close" size={28} color="#333" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerText}>Balance the Scale!</Text>
+                </View>
 
             <View style={styles.gameArea}>
                 {/* Instructions */}
@@ -492,7 +496,8 @@ export default function BalanceScaleGame({
                     </View>
                 )}
             </View>
-        </GestureHandlerRootView>
+            </GestureHandlerRootView>
+        </SafeAreaView>
     );
 }
 

@@ -1,5 +1,5 @@
 const { initializeApp } = require("firebase/app");
-const { getFirestore, collection, addDoc, doc, setDoc } = require("firebase/firestore");
+const { getFirestore, collection, addDoc, doc, setDoc, getDocs, deleteDoc } = require("firebase/firestore");
 require('dotenv').config();
 
 // Ensure your .env file has these keys!
@@ -1080,7 +1080,7 @@ const courses = [
                     {
                         title: "Up in the Clouds!",
                         type: "story_intro",
-                        content: "🦅\n\nHi, I'm Bella!\n\nLet's Fly Away! ☁️ 🚀",
+                        content: "🦅\n\nHi, I'm Bella!\n\nLet's Fly Away! ☁️ 🎈",
                         points: 5, stars: 1, order: 1
                     },
                     {
@@ -1296,11 +1296,20 @@ async function seed() {
         });
         console.log(`✅ Course: ${course.title}`);
 
+        // Delete existing modules to prevent duplicates
+        const existingModulesSnapshot = await getDocs(collection(firestore, "courses", course.id, "modules"));
+        for (const moduleDoc of existingModulesSnapshot.docs) {
+            // Delete all lessons in this module first
+            const lessonsSnapshot = await getDocs(collection(firestore, "courses", course.id, "modules", moduleDoc.id, "lessons"));
+            for (const lessonDoc of lessonsSnapshot.docs) {
+                await deleteDoc(lessonDoc.ref);
+            }
+            // Then delete the module
+            await deleteDoc(moduleDoc.ref);
+        }
+
         for (const module of course.modules) {
             // 2. Create Module
-            // We use addDoc here for simplicity, but in a real 'update' scenario, 
-            // you might want to query for existing modules to avoid duplicates if re-seeding often.
-            // For now, assume a fresh seed or acceptable duplicates in sub-collections.
             const moduleRef = await addDoc(collection(firestore, "courses", course.id, "modules"), {
                 title: module.title,
                 order: module.order
