@@ -203,42 +203,11 @@ export default function LessonScreen() {
         }
     };
 
-    // --- SAVING & NAVIGATION ---
-    const navigateToNextLesson = async () => {
+const navigateToNextLesson = async () => {
         try {
             const cId = courseId as string;
             const mId = moduleId as string;
 
-            // STORY OUTRO SPECIAL LOGIC
-            if (lesson.type === 'story_outro') {
-                if (currentModuleOrder === 4) {
-                    router.replace({ pathname: "/(tabs)/courses" });
-                    return;
-                } else {
-                    const nextModuleOrder = currentModuleOrder + 1;
-                    const modulesRef = collection(firestore, "courses", cId, "modules");
-                    const moduleQ = query(modulesRef, where("order", "==", nextModuleOrder), limit(1));
-                    const moduleSnap = await getDocs(moduleQ);
-
-                    if (!moduleSnap.empty) {
-                        const nextModuleId = moduleSnap.docs[0].id;
-                        const nextModLessonsRef = collection(firestore, "courses", cId, "modules", nextModuleId, "lessons");
-                        const firstLessonQ = query(nextModLessonsRef, orderBy("order", "asc"), limit(1));
-                        const firstLessonSnap = await getDocs(firstLessonQ);
-
-                        if (!firstLessonSnap.empty) {
-                            const firstLessonDoc = firstLessonSnap.docs[0];
-                            router.replace({
-                                pathname: "/child/course/lesson/[id]",
-                                params: { courseId: cId, moduleId: nextModuleId, id: firstLessonDoc.id, title: firstLessonDoc.data().title }
-                            });
-                            return;
-                        }
-                    }
-                }
-            }
-
-            // STANDARD NEXT LESSON
             const nextLessonOrder = lesson.order + 1;
             const lessonsRef = collection(firestore, "courses", cId, "modules", mId, "lessons");
             const lessonQ = query(lessonsRef, where("order", "==", nextLessonOrder), limit(1));
@@ -246,32 +215,43 @@ export default function LessonScreen() {
 
             if (!lessonSnap.empty) {
                 const nextDoc = lessonSnap.docs[0];
-                router.replace({
+                router.push({
                     pathname: "/child/course/lesson/[id]",
                     params: { courseId: cId, moduleId: mId, id: nextDoc.id, title: nextDoc.data().title }
                 });
                 return;
             }
 
-            // MODULE COMPLETE
-            Alert.alert("Module Complete! 🏆", "Great work! Ready for the next challenge?",
-                [{ 
-                    text: "Continue", 
-                    onPress: () => {
-                        router.replace({
-                            pathname: "/child/course/[id]",
-                            params: { id: cId, title: title as string }
-                        });
-                    }
-                }]
+            const nextModuleOrder = currentModuleOrder + 1;
+            const modulesRef = collection(firestore, "courses", cId, "modules");
+            const moduleQ = query(modulesRef, where("order", "==", nextModuleOrder), limit(1));
+            const moduleSnap = await getDocs(moduleQ);
+
+            if (!moduleSnap.empty) {
+                const nextModuleDoc = moduleSnap.docs[0];
+                const nextModuleId = nextModuleDoc.id;
+                const nextModLessonsRef = collection(firestore, "courses", cId, "modules", nextModuleId, "lessons");
+                const firstLessonQ = query(nextModLessonsRef, orderBy("order", "asc"), limit(1));
+                const firstLessonSnap = await getDocs(firstLessonQ);
+
+                if (!firstLessonSnap.empty) {
+                    const firstLessonDoc = firstLessonSnap.docs[0];
+                    Alert.alert("Level Complete! 🏆", "Ready for the next Level?",
+                        [{ text: "Let's Go! 🚀", onPress: () => {
+                            router.push({
+                                pathname: "/child/course/lesson/[id]",
+                                params: { courseId: cId, moduleId: nextModuleId, id: firstLessonDoc.id, title: firstLessonDoc.data().title }
+                            });
+                        }}]
+                    );
+                    return;
+                }
+            }
+
+            Alert.alert("COURSE COMPLETE! 🎉", "You finished the section!", 
+                [{ text: "Back to Menu", onPress: () => router.dismissTo({ pathname: "/child/course/[id]", params: { id: cId, title: title as string } }) }]
             );
-        } catch (error) { 
-            console.error("Navigation Error", error);
-            router.replace({
-                pathname: "/child/course/[id]",
-                params: { id: courseId as string, title: title as string }
-            });
-        }
+        } catch (error) { console.error("Navigation Error", error); }
     };
 
     const handleComplete = async () => {
