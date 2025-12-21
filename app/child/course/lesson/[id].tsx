@@ -1,29 +1,80 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from "firebase/firestore";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
     Animated,
-    Dimensions,
-    Easing,
-    PanResponder,
-    ScrollView,
+    LayoutAnimation,
+    Platform,
     Text,
     TouchableOpacity,
-    View,
+    UIManager,
+    View
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth, firestore } from "../../../../config/firebase";
-import { ChildProgressService } from "../../../../services/ChildProgressService";
+import { auth, firestore } from "../../../../config/firebase"; // Check your path!
+import { ChildProgressService } from "../../../../services/ChildProgressService"; // Check your path!
+
+// --- 🔊 IMPORT YOUR AUDIO MANAGER ---
+import { audioManager } from "@/components/LessonEngine/AudioManager";
 
 // Game Components
 import BubblePopGame from "@/components/LessonEngine/BubblePopGame";
 import TracingGame, { GameResult } from "@/components/LessonEngine/TracingGame";
 
-const { width } = Dimensions.get("window");
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// --- 🤖 LUMO THE ROBOT COMPONENT ---
+const LumoAvatar = ({ mood }: { mood: 'happy' | 'thinking' | 'sad' | 'success' }) => {
+    const bounce = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (mood === 'success') {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(bounce, { toValue: -20, duration: 300, useNativeDriver: true }),
+                    Animated.timing(bounce, { toValue: 0, duration: 300, useNativeDriver: true })
+                ]),
+                { iterations: 2 }
+            ).start();
+        } else if (mood === 'thinking') {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(bounce, { toValue: -5, duration: 1000, useNativeDriver: true }),
+                    Animated.timing(bounce, { toValue: 0, duration: 1000, useNativeDriver: true })
+                ])
+            ).start();
+        } else {
+            bounce.setValue(0);
+        }
+    }, [mood]);
+
+    const getIcon = () => {
+        switch (mood) {
+            case 'success': return "happy";
+            case 'sad': return "sad";
+            case 'thinking': return "bulb";
+            default: return "happy-outline";
+        }
+    };
+
+    return (
+        <Animated.View style={{ transform: [{ translateY: bounce }] }} className="items-center justify-center z-50">
+            <View className={`w-24 h-24 rounded-full justify-center items-center shadow-lg border-4 ${mood === 'success' ? 'bg-yellow-300 border-yellow-500' : 'bg-white border-purple-500'}`}>
+                <Ionicons name={getIcon()} size={50} color="#673AB7" />
+            </View>
+            <View className="bg-purple-600 px-3 py-1 rounded-full -mt-3 border-2 border-white">
+                <Text className="text-white font-bold text-xs">LUMO</Text>
+            </View>
+        </Animated.View>
+    );
+};
 
 export default function LessonScreen() {
     const { courseId, moduleId, id, title } = useLocalSearchParams();
@@ -34,14 +85,10 @@ export default function LessonScreen() {
     const [loading, setLoading] = useState(true);
     const [completing, setCompleting] = useState(false);
     
-    // Drag Game State
-    const [draggedItem, setDraggedItem] = useState<string | null>(null);
-    const dragPosition = useRef(new Animated.ValueXY()).current;
-    
     // Game Logic State
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [isCorrect, setIsCorrect] = useState<boolean>(false);
-    const [feedbackMsg, setFeedbackMsg] = useState<string>("");
+    const [lumoMood, setLumoMood] = useState<'happy' | 'thinking' | 'sad' | 'success'>('thinking');
     
     // Sequencing State
     const [sequenceStep, setSequenceStep] = useState<number>(0);
@@ -49,43 +96,12 @@ export default function LessonScreen() {
 
     // --- ANIMATION VALUES ---
     const shakeAnim = useRef(new Animated.Value(0)).current; 
-    const scaleAnim = useRef(new Animated.Value(1)).current; 
-    const lumoPosition = useRef(new Animated.Value(-100)).current; 
     
-    const isBridgeLevel = lesson?.title?.toLowerCase().includes("bridge");
-
-    useEffect(() => { fetchLesson(); }, [id]);
-
-    const panResponder = useMemo(() => PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onPanResponderMove: Animated.event(
-            [null, { dx: dragPosition.x, dy: dragPosition.y }],
-            { useNativeDriver: false }
-        ),
-        onPanResponderRelease: (_, gesture) => {
-            if (!lesson?.data) return;
-
-            if (gesture.dy < -80) {
-                if (draggedItem === lesson.data.correctAnswer) {
-                    setIsCorrect(true);
-                    setFeedbackMsg(lesson.data.successText || "Awesome!");
-                    triggerSuccess();
-                } else {
-                    triggerShake();
-                }
-            }
-
-            Animated.spring(dragPosition, {
-                toValue: { x: 0, y: 0 },
-                useNativeDriver: false
-            }).start();
-        }
-    }), [lesson, draggedItem, isCorrect]);
-
-    const getRandomEncouragement = () => {
-        const phrases = ["Awesome!", "You're a Star! 🌟", "Super Brain! 🧠", "Way to go!", "Perfect!", "Smart Kid! 🎓"];
-        return phrases[Math.floor(Math.random() * phrases.length)];
-    };
+    // 🔊 LOAD SOUNDS ON START
+    useEffect(() => {
+        audioManager.loadSounds(); // Preload SFX
+        fetchLesson(); 
+    }, [id]);
 
     const fetchLesson = async () => {
         setLoading(true);
@@ -113,63 +129,55 @@ export default function LessonScreen() {
     const resetGameState = () => {
         setSelectedOption(null);
         setIsCorrect(false);
-        setFeedbackMsg("");
+        setLumoMood('thinking');
         setSequenceStep(0);
         setCompletedSequence([]);
         shakeAnim.setValue(0);
-        scaleAnim.setValue(1);
-        lumoPosition.setValue(-100); 
     };
 
-    // --- ANIMATION FUNCTIONS ---
+    // --- ANIMATION & SOUND FUNCTIONS ---
     const triggerShake = () => {
+        setLumoMood('sad');
+        // 🔊 Play FAIL sound (from your AudioManager)
+        audioManager.play('boing'); 
+        
         Animated.sequence([
-            Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
-            Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
-            Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+            Animated.timing(shakeAnim, { toValue: 15, duration: 50, useNativeDriver: true }),
+            Animated.timing(shakeAnim, { toValue: -15, duration: 50, useNativeDriver: true }),
+            Animated.timing(shakeAnim, { toValue: 15, duration: 50, useNativeDriver: true }),
             Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true })
-        ]).start();
+        ]).start(() => setLumoMood('thinking'));
     };
 
     const triggerSuccess = () => {
-        Animated.sequence([
-            Animated.timing(scaleAnim, { toValue: 1.5, duration: 150, useNativeDriver: true }),
-            Animated.timing(scaleAnim, { toValue: 1, duration: 150, useNativeDriver: true })
-        ]).start();
-
-        if (isBridgeLevel) {
-            Animated.timing(lumoPosition, {
-                toValue: width, 
-                duration: 3000, 
-                easing: Easing.linear,
-                useNativeDriver: true
-            }).start();
-        }
+        setLumoMood('success');
+        // 🔊 Play SUCCESS sound (Using the same key as TracingGame)
+        audioManager.play('correct'); 
+        
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
     };
 
     // --- LOGIC HANDLERS ---
     const handlePatternSelect = (option: string) => {
-        setSelectedOption(option);
+        if (isCorrect) return;
+
         if (option === lesson.data.correctAnswer) {
+            setSelectedOption(option);
             setIsCorrect(true);
-            setFeedbackMsg(getRandomEncouragement());
             triggerSuccess();
         } else {
-            setIsCorrect(false);
-            setFeedbackMsg("Oops! Try again!");
             triggerShake();
         }
     };
 
     const handleSortingSelect = (item: string) => {
-        setSelectedOption(item);
+        if (isCorrect) return;
+
         if (item === lesson.data.correctAnswer) {
+            setSelectedOption(item);
             setIsCorrect(true);
-            setFeedbackMsg(lesson.data.explanation || getRandomEncouragement());
             triggerSuccess();
         } else {
-            setIsCorrect(false);
-            setFeedbackMsg("Look closely!");
             triggerShake();
         }
     };
@@ -180,60 +188,21 @@ export default function LessonScreen() {
             const newSequence = [...completedSequence, item];
             setCompletedSequence(newSequence);
             setSequenceStep(sequenceStep + 1);
-            triggerSuccess(); 
 
             if (newSequence.length === lesson.data.correctOrder.length) {
                 setIsCorrect(true);
-                setFeedbackMsg("🌟 Perfect Order! You did it!");
+                triggerSuccess();
+            } else {
+                setLumoMood('happy');
+                audioManager.play('pop'); // 🔊 Play pop for partial steps
+                setTimeout(() => setLumoMood('thinking'), 800);
             }
         } else {
             triggerShake();
-            Alert.alert("Try Again", "That comes later! What happens first?");
         }
     };
 
-    // --- TRACING HANDLER ---
-    const handleTracingComplete = async (result: GameResult) => {
-        if (!auth.currentUser) return;
-        setCompleting(true);
-        try {
-            await ChildProgressService.markItemComplete(
-                auth.currentUser.uid, 
-                id as string, 
-                result.score || lesson.points, 
-                result.stars || 3
-            );
-            setIsCorrect(true);
-            await navigateToNextLesson();
-        } catch (error) {
-            console.error("Tracing Save Error:", error);
-            Alert.alert("Error", "Could not save progress");
-        } finally {
-            setCompleting(false);
-        }
-    };
-
-    // --- BUBBLE GAME HANDLER ---
-    const handleBubbleComplete = async (score: number, stars: number) => {
-        if (!auth.currentUser) return;
-        setCompleting(true);
-        try {
-            await ChildProgressService.markItemComplete(
-                auth.currentUser.uid,
-                id as string,
-                score || 50,
-                stars || 3
-            );
-            setIsCorrect(true);
-            await navigateToNextLesson();
-        } catch (error) {
-            console.error("Bubble Save Error:", error);
-            Alert.alert("Error", "Could not save progress");
-        } finally {
-            setCompleting(false);
-        }
-    };
-
+    // --- NAVIGATION LOGIC ---
     const navigateToNextLesson = async () => {
         try {
             const cId = courseId as string;
@@ -287,8 +256,12 @@ export default function LessonScreen() {
 
     const handleComplete = async () => {
         if (!auth.currentUser) return;
-        const isGame = ['logic_pattern', 'logic_sorting', 'logic_sequencing'].includes(lesson.type);
-        if (isGame && !isCorrect) { triggerShake(); return; }
+        const isGame = ['logic_pattern', 'logic_sorting', 'logic_sequencing', 'logic_drag', 'story_intro'].includes(lesson.type);
+        
+        if (isGame && lesson.type !== 'story_intro' && !isCorrect) { 
+            triggerShake(); 
+            return; 
+        }
 
         setCompleting(true);
         try {
@@ -297,14 +270,202 @@ export default function LessonScreen() {
         } catch (error) { console.error(error); } finally { setCompleting(false); }
     };
 
+    const handleExternalGameComplete = async (score: number, stars: number) => {
+        if (!auth.currentUser) return;
+        setCompleting(true);
+        try {
+            await ChildProgressService.markItemComplete(auth.currentUser.uid, id as string, score, stars);
+            setIsCorrect(true);
+            await navigateToNextLesson();
+        } catch (error) { console.error(error); } finally { setCompleting(false); }
+    };
+
     if (loading) return <ActivityIndicator size="large" className="flex-1 bg-white justify-center items-center" />;
     if (!lesson) return null;
+
+    // --- RENDER HELPERS ---
+    const renderPatternGame = () => {
+        const currentOptions = lesson.data.options || lesson.data.draggableOptions || [];
+        
+        return (
+            <View className="flex-1 items-center justify-center">
+                <View className="flex-row gap-2 mb-10 p-4 bg-white/30 rounded-2xl flex-wrap justify-center">
+                    {lesson.data.sequence.map((item: string, index: number) => {
+                        const isMissingSlot = item === "?";
+                        return (
+                            <View key={index} className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl justify-center items-center shadow-sm 
+                                ${isMissingSlot 
+                                    ? (isCorrect ? 'bg-green-400 border-b-4 border-green-600' : 'bg-black/10 border-2 border-dashed border-white') 
+                                    : 'bg-white border-b-4 border-gray-200'}`}>
+                                <Text className="text-4xl">
+                                    {isMissingSlot ? (isCorrect ? lesson.data.correctAnswer : "?") : item}
+                                </Text>
+                            </View>
+                        );
+                    })}
+                </View>
+
+                <View className="flex-row gap-4 flex-wrap justify-center">
+                    {currentOptions.map((option: string, index: number) => {
+                        if (isCorrect && option === lesson.data.correctAnswer) return <View key={index} className="w-20 h-20" />;
+
+                        return (
+                            <TouchableOpacity 
+                                key={index} 
+                                onPress={() => handlePatternSelect(option)}
+                                disabled={isCorrect}
+                                activeOpacity={0.7}
+                            >
+                                <Animated.View 
+                                    style={{ transform: [{ translateX: shakeAnim }] }}
+                                    className="w-20 h-20 bg-white rounded-2xl justify-center items-center shadow-lg border-b-4 border-purple-200"
+                                >
+                                    <Text className="text-5xl">{option}</Text>
+                                </Animated.View>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+            </View>
+        );
+    };
+
+    const renderSortingGame = () => (
+        <View className="flex-1 items-center justify-center w-full px-4">
+            <View className="flex-row flex-wrap justify-center gap-4">
+                {lesson.data.items.map((item: string, index: number) => {
+                    const isSelected = selectedOption === item;
+                    const isTarget = item === lesson.data.correctAnswer;
+                    
+                    if (isCorrect && !isTarget) return <View key={index} className="w-24 h-24 opacity-20 bg-gray-200 rounded-xl m-2" />;
+
+                    return (
+                        <TouchableOpacity 
+                            key={index} 
+                            onPress={() => handleSortingSelect(item)}
+                            disabled={isCorrect}
+                            className="m-2"
+                        >
+                            <Animated.View 
+                                style={{ transform: [{ translateX: isSelected && !isTarget ? shakeAnim : 0 }, { scale: isCorrect && isTarget ? 1.2 : 1 }] }}
+                                className={`w-24 h-24 rounded-2xl justify-center items-center shadow-lg border-b-4 
+                                ${isCorrect && isTarget ? 'bg-green-400 border-green-600' : 'bg-white border-blue-200'}`}
+                            >
+                                <Text className="text-5xl">{item}</Text>
+                            </Animated.View>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+            <View className="mt-8 bg-white/20 p-4 rounded-xl">
+                 <Text className="text-white text-lg font-bold text-center">
+                     {isCorrect ? lesson.data.explanation : "Tap the one that fits the question!"}
+                 </Text>
+            </View>
+        </View>
+    );
+
+    const renderSequencingGame = () => (
+        <View className="flex-1 items-center justify-center w-full">
+            <View className="flex-row gap-2 mb-12">
+                {lesson.data.correctOrder.map((_: any, index: number) => {
+                    const filledItem = completedSequence[index];
+                    return (
+                        <View key={index} className="items-center">
+                            <View className={`w-20 h-20 rounded-xl justify-center items-center border-2 
+                                ${filledItem ? 'bg-white border-purple-400' : 'bg-black/10 border-dashed border-white'}`}>
+                                <Text className="text-4xl">{filledItem || index + 1}</Text>
+                            </View>
+                            {lesson.data.labels && (
+                                <Text className="text-white font-bold mt-2 text-xs">
+                                    {filledItem ? lesson.data.labels[lesson.data.correctOrder.indexOf(filledItem)] : "..."}
+                                </Text>
+                            )}
+                        </View>
+                    );
+                })}
+            </View>
+
+            <View className="flex-row gap-4">
+                {lesson.data.scrambled.map((item: string, index: number) => {
+                    const isUsed = completedSequence.includes(item);
+                    if (isUsed) return <View key={index} className="w-20 h-20" />;
+
+                    return (
+                        <TouchableOpacity 
+                            key={index}
+                            onPress={() => handleSequencingSelect(item)}
+                        >
+                            <Animated.View 
+                                style={{ transform: [{ translateX: shakeAnim }] }}
+                                className="w-20 h-20 bg-white rounded-2xl justify-center items-center shadow-lg border-b-4 border-orange-300"
+                            >
+                                <Text className="text-4xl">{item}</Text>
+                            </Animated.View>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+        </View>
+    );
+
+    const isGame = ['logic_pattern', 'logic_sorting', 'logic_sequencing', 'logic_drag'].includes(lesson.type);
+
+    if (isGame) {
+        return (
+            <SafeAreaView className="flex-1 bg-[#673AB7]" edges={['top', 'bottom']}> 
+                <View className="flex-row justify-between items-center px-4 py-2">
+                    <TouchableOpacity onPress={() => router.back()} className="bg-white/20 p-2 rounded-full">
+                        <Ionicons name="arrow-back" size={24} color="white" />
+                    </TouchableOpacity>
+                    <View className="bg-white/20 px-4 py-1 rounded-full">
+                        <Text className="text-white font-bold">Level {lesson.order}</Text>
+                    </View>
+                    <View className="w-10" /> 
+                </View>
+
+                <View className="px-6 py-4 min-h-[100px] justify-center items-center">
+                    <Text className="text-white text-2xl font-bold text-center leading-8 shadow-black shadow-sm">
+                        {lesson.question}
+                    </Text>
+                </View>
+
+                <View className="flex-1 w-full relative">
+                    <View className="absolute top-0 right-4 z-10">
+                        <LumoAvatar mood={lumoMood} />
+                    </View>
+                    {(lesson.type === 'logic_pattern' || lesson.type === 'logic_drag') && renderPatternGame()}
+                    {lesson.type === 'logic_sorting' && renderSortingGame()}
+                    {lesson.type === 'logic_sequencing' && renderSequencingGame()}
+                </View>
+
+                <View className="p-6">
+                    {isCorrect ? (
+                        <TouchableOpacity 
+                            onPress={handleComplete}
+                            disabled={completing}
+                            className="bg-green-400 w-full py-4 rounded-2xl border-b-4 border-green-600 shadow-xl flex-row justify-center items-center"
+                        >
+                            {completing ? <ActivityIndicator color="white" /> : (
+                                <>
+                                    <Text className="text-white text-xl font-bold uppercase tracking-widest mr-2">Continue</Text>
+                                    <Ionicons name="arrow-forward" size={24} color="white" />
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    ) : (
+                        <View className="h-14 justify-center items-center">
+                            <Text className="text-white/60 text-sm">Solve the puzzle to help Lumo!</Text>
+                        </View>
+                    )}
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
-                
-                {/* Hide Header for Full Screen Games */}
                 {lesson.type !== 'tracing' && lesson.type !== 'bubble_pop' && (
                     <View className="flex-row items-center px-4 py-4 border-b border-gray-100 bg-white z-10">
                         <TouchableOpacity onPress={() => router.back()} className="mr-4">
@@ -314,195 +475,42 @@ export default function LessonScreen() {
                     </View>
                 )}
 
-                {/* --- RENDER CONTENT --- */}
-                {lesson.type === 'tracing' ? (
-                    <View className="flex-1 bg-[#edf0f7]">
-                        <TracingGame 
-                            key={id as string} 
-                            data={lesson.data} 
-                            onComplete={handleTracingComplete}
-                            onExit={() => router.back()}
-                        />
-                        {completing && (
-                             <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
-                                <ActivityIndicator size="large" color="#FFD700" />
-                                <Text className="text-white font-bold mt-4">Saving...</Text>
-                            </View>
-                        )}
-                    </View>
-                ) : lesson.type === 'bubble_pop' ? (
-                    <View className="flex-1 bg-[#E0F7FA]">
-                        <BubblePopGame 
-                            onComplete={handleBubbleComplete}
-                            onExit={() => router.back()}
-                        />
-                         {completing && (
-                             <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
-                                <ActivityIndicator size="large" color="#FFD700" />
-                                <Text className="text-white font-bold mt-4">Great Job! Saving...</Text>
-                            </View>
-                        )}
-                    </View>
-                ) : (
-                    // --- STANDARD LOGIC GAMES ---
-                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
-                        {isBridgeLevel && (
-                            <View className="h-40 bg-sky-200 relative overflow-hidden mb-4 w-full">
-                                <View className="absolute top-4 left-10"><Ionicons name="cloud" size={40} color="white" /></View>
-                                <View className="absolute top-10 right-20"><Ionicons name="cloud" size={30} color="white" /></View>
-                                <View className="absolute bottom-0 w-full h-12 bg-blue-400" />
-                                <Animated.View style={{ position: 'absolute', bottom: 15, left: lumoPosition, zIndex: 10 }}>
-                                    <Ionicons name="happy" size={50} color="#673AB7" />
-                                </Animated.View>
-                            </View>
-                        )}
-
-                        <View className="px-6 py-4">
-                            {/* STORY INTRO */}
-                            {lesson.type === 'story_intro' && (
-                                <View className="items-center mt-4">
-                                    <View className="bg-purple-100 p-8 rounded-full mb-6 border-4 border-purple-200 shadow-sm">
-                                        <Ionicons name="happy" size={80} color="#673AB7" />
-                                    </View>
-                                    <Text className="text-2xl font-medium text-center mt-2 leading-9 text-gray-800">{lesson.content}</Text>
-                                </View>
-                            )}
-
-                            {/* LOGIC PATTERN */}
-                            {lesson.type === 'logic_pattern' && lesson.data && (
-                                <View>
-                                    <Text className="text-2xl font-bold text-center mb-6">{lesson.question}</Text>
-                                    <View className={`flex-row justify-center items-end p-4 rounded-xl mb-10 flex-wrap min-h-[100px] ${isBridgeLevel ? 'bg-transparent' : 'bg-gray-50 border-2 border-dashed border-gray-200'}`}>
-                                        {lesson.data.sequence.map((item: string, index: number) => (
-                                            <View key={index} className="m-1 items-center">
-                                                {item === "?" ? (
-                                                    <Animated.View style={{ transform: [{ scale: isCorrect ? scaleAnim : 1 }] }}>
-                                                        <View className={`w-16 h-16 rounded-lg justify-center items-center shadow-sm border-b-4 ${isCorrect ? 'bg-green-400 border-green-600' : 'bg-gray-200 border-gray-300 border-dashed'}`}>
-                                                            <Text className="text-4xl">{isCorrect ? lesson.data.correctAnswer : "?"}</Text>
-                                                        </View>
-                                                    </Animated.View>
-                                                ) : (
-                                                    <View className={`w-16 h-16 rounded-lg justify-center items-center shadow-sm border-b-4 bg-white border-gray-300`}>
-                                                        <Text className="text-4xl">{item}</Text>
-                                                    </View>
-                                                )}
-                                                {isBridgeLevel && <View className="h-4 w-2 bg-gray-400 mt-[-2px]" />} 
-                                            </View>
-                                        ))}
-                                    </View>
-                                    <View className="flex-row justify-center gap-4">
-                                        {lesson.data.options.map((option: string, index: number) => {
-                                            const isSelected = selectedOption === option;
-                                            const isThisCorrect = option === lesson.data.correctAnswer;
-                                            const animatedStyle = (isSelected && !isThisCorrect) ? { transform: [{ translateX: shakeAnim }] } : {};
-                                            return (
-                                                <Animated.View key={index} style={animatedStyle}>
-                                                    <TouchableOpacity onPress={() => handlePatternSelect(option)} disabled={isCorrect}
-                                                        className={`w-20 h-20 rounded-xl justify-center items-center border-b-4 shadow-md ${isSelected ? (isThisCorrect ? 'bg-green-100 border-green-500' : 'bg-red-100 border-red-500') : 'bg-white border-gray-200'}`}>
-                                                        <Text className="text-4xl">{option}</Text>
-                                                    </TouchableOpacity>
-                                                </Animated.View>
-                                            );
-                                        })}
-                                    </View>
-                                </View>
-                            )}
-
-                            {/* LOGIC SORTING */}
-                            {lesson.type === 'logic_sorting' && lesson.data && (
-                                <View>
-                                    <Text className="text-2xl font-bold text-center mb-8">{lesson.question}</Text>
-                                    <View className="flex-row flex-wrap justify-center gap-4">
-                                        {lesson.data.items.map((item: string, index: number) => {
-                                            const isSelected = selectedOption === item;
-                                            const isThisCorrect = item === lesson.data.correctAnswer;
-                                            const animatedStyle = (isSelected && !isThisCorrect) ? { transform: [{ translateX: shakeAnim }] } : {};
-                                            return (
-                                                <Animated.View key={index} style={animatedStyle}>
-                                                    <TouchableOpacity onPress={() => handleSortingSelect(item)}
-                                                        className={`w-20 h-20 rounded-xl justify-center items-center border-b-4 ${isSelected ? (isThisCorrect ? 'bg-green-100 border-green-500' : 'bg-red-100 border-red-500') : 'bg-white border-gray-200'}`}>
-                                                        <Text className="text-4xl">{item}</Text>
-                                                    </TouchableOpacity>
-                                                </Animated.View>
-                                            );
-                                        })}
-                                    </View>
-                                </View>
-                            )}
-
-                            {/* LOGIC DRAG */}
-                            {lesson.type === "logic_drag" && lesson.data && (
-                                <View>
-                                    <Text className="text-2xl font-bold text-center mb-6">{lesson.question}</Text>
-                                    <View className="flex-row justify-center mb-12">
-                                        {lesson.data.sequence.map((item: string, index: number) => (
-                                            <View key={index} className={`w-16 h-16 mx-1 rounded-lg justify-center items-center border-2 ${item === "?" ? "border-dashed border-gray-400" : "bg-white border-gray-300"}`}>
-                                                <Text className="text-4xl">{item === "?" && isCorrect ? lesson.data.correctAnswer : item}</Text>
-                                            </View>
-                                        ))}
-                                    </View>
-                                    <View className="flex-row justify-center gap-6">
-                                        {lesson.data.draggableOptions.map((option: string) =>
-                                            draggedItem === option || draggedItem === null ? (
-                                                <Animated.View key={option} {...panResponder.panHandlers} style={[dragPosition.getLayout(), { opacity: isCorrect ? 0.5 : 1 }]}>
-                                                    <TouchableOpacity disabled={isCorrect} onPressIn={() => setDraggedItem(option)} className="w-20 h-20 rounded-xl bg-yellow-100 border-b-4 border-yellow-400 justify-center items-center shadow-md">
-                                                        <Text className="text-4xl">{option}</Text>
-                                                    </TouchableOpacity>
-                                                </Animated.View>
-                                            ) : null
-                                        )}
-                                    </View>
-                                </View>
-                            )}
-
-                            {/* LOGIC SEQUENCING */}
-                            {lesson.type === 'logic_sequencing' && lesson.data && (
-                                <View>
-                                    <Text className="text-xl font-bold text-center mb-4">{lesson.question}</Text>
-                                    <View className="flex-row justify-center mb-8 bg-gray-50 p-4 rounded-xl flex-wrap gap-2">
-                                        {lesson.data.correctOrder.map((_: any, index: number) => (
-                                            <Animated.View key={index} style={{ transform: [{ scale: completedSequence[index] ? scaleAnim : 1 }] }}>
-                                                <View className={`w-16 h-16 rounded-xl justify-center items-center border-2 ${completedSequence[index] ? 'bg-green-100 border-green-500' : 'border-dashed border-gray-300'}`}>
-                                                    <Text className="text-3xl">{completedSequence[index] || (index + 1)}</Text>
-                                                </View>
-                                            </Animated.View>
-                                        ))}
-                                    </View>
-                                    <View className="flex-row justify-center gap-4 flex-wrap">
-                                        {lesson.data.scrambled.map((item: string, index: number) => {
-                                            const isUsed = completedSequence.includes(item);
-                                            return (
-                                                <Animated.View key={index} style={(!isUsed && !isCorrect) ? { transform: [{ translateX: shakeAnim }] } : {}}> 
-                                                    <TouchableOpacity onPress={() => handleSequencingSelect(item)} disabled={isUsed || isCorrect}
-                                                        className={`w-16 h-16 rounded-xl justify-center items-center shadow-sm border-b-4 ${isUsed ? 'bg-gray-100 opacity-50 border-gray-200' : 'bg-white border-blue-200'}`}>
-                                                        <Text className="text-3xl">{item}</Text>
-                                                    </TouchableOpacity>
-                                                </Animated.View>
-                                            );
-                                        })}
-                                    </View>
-                                </View>
-                            )}
-
-                            {feedbackMsg ? (
-                                <View className={`p-4 rounded-xl mt-6 border-b-4 ${isCorrect ? 'bg-green-100 border-green-200' : 'bg-orange-100 border-orange-200'}`}>
-                                    <Text className={`text-center font-bold text-lg ${isCorrect ? 'text-green-700' : 'text-orange-700'}`}>{feedbackMsg}</Text>
-                                </View>
-                            ) : null}
+                {lesson.type === 'story_intro' && (
+                    <View className="flex-1 items-center justify-center p-8 bg-purple-50">
+                        <LumoAvatar mood="happy" />
+                        <View className="bg-white p-6 rounded-2xl shadow-sm mt-8 border border-purple-100">
+                            <Text className="text-2xl text-center text-gray-800 leading-9">{lesson.content}</Text>
                         </View>
-                    </ScrollView>
+                        <TouchableOpacity 
+                            onPress={handleComplete} 
+                            disabled={completing}
+                            className="mt-10 bg-purple-600 px-10 py-4 rounded-full shadow-lg border-b-4 border-purple-800 active:translate-y-1"
+                        >
+                             {completing ? <ActivityIndicator color="white" /> : <Text className="text-white text-xl font-bold">Let's Go! 🚀</Text>}
+                        </TouchableOpacity>
+                    </View>
                 )}
 
-                {/* Footer Logic */}
-                {lesson.type !== 'tracing' && lesson.type !== 'bubble_pop' && (
-                    <View className="p-6 border-t border-gray-100 bg-white">
-                        <TouchableOpacity
-                            className={`py-4 rounded-xl shadow-md border-b-4 active:border-b-0 active:translate-y-1 ${(lesson.type === 'story_intro' || isCorrect) ? 'bg-secondary border-yellow-500' : 'bg-gray-200 border-gray-300'}`}
-                            onPress={handleComplete}
-                            disabled={(!isCorrect && lesson.type !== 'story_intro') || completing}
-                        >
-                            {completing ? <ActivityIndicator color="#000" /> : <Text className={`text-center font-bold text-xl uppercase tracking-wider ${(lesson.type === 'story_intro' || isCorrect) ? 'text-primary' : 'text-gray-400'}`}>{lesson.type === 'story_intro' ? "Start Adventure 🚀" : (isCorrect ? "Next Activity ➡️" : "Solve to Continue")}</Text>}
-                        </TouchableOpacity>
+                {lesson.type === 'tracing' && (
+                    <TracingGame 
+                        key={id as string} 
+                        data={lesson.data} 
+                        onComplete={(result: GameResult) => handleExternalGameComplete(result.score || lesson.points, result.stars || 3)}
+                        onExit={() => router.back()}
+                    />
+                )}
+
+                {lesson.type === 'bubble_pop' && (
+                    <BubblePopGame 
+                        onComplete={(score: number, stars: number) => handleExternalGameComplete(score, stars)}
+                        onExit={() => router.back()}
+                    />
+                )}
+                
+                {completing && (lesson.type === 'tracing' || lesson.type === 'bubble_pop') && (
+                     <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
+                        <ActivityIndicator size="large" color="#FFD700" />
+                        <Text className="text-white font-bold mt-4">Saving Progress...</Text>
                     </View>
                 )}
             </SafeAreaView>
