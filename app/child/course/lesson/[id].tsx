@@ -4,7 +4,6 @@ import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from "
 import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
-    Alert,
     Animated,
     Dimensions,
     LayoutAnimation,
@@ -110,6 +109,7 @@ export default function LessonScreen() {
 
     const fetchLesson = async () => {
         setLoading(true);
+        hasExited.current = false; // Reset exit flag for new lesson
         try {
             const cId = courseId as string;
             const mId = moduleId as string;
@@ -215,7 +215,7 @@ const navigateToNextLesson = async () => {
 
             if (!lessonSnap.empty) {
                 const nextDoc = lessonSnap.docs[0];
-                router.push({
+                router.replace({
                     pathname: "/child/course/lesson/[id]",
                     params: { courseId: cId, moduleId: mId, id: nextDoc.id, title: nextDoc.data().title }
                 });
@@ -236,21 +236,17 @@ const navigateToNextLesson = async () => {
 
                 if (!firstLessonSnap.empty) {
                     const firstLessonDoc = firstLessonSnap.docs[0];
-                    Alert.alert("Level Complete! 🏆", "Ready for the next Level?",
-                        [{ text: "Let's Go! 🚀", onPress: () => {
-                            router.push({
-                                pathname: "/child/course/lesson/[id]",
-                                params: { courseId: cId, moduleId: nextModuleId, id: firstLessonDoc.id, title: firstLessonDoc.data().title }
-                            });
-                        }}]
-                    );
+                    // Navigate directly to next module without alert
+                    router.replace({
+                        pathname: "/child/course/lesson/[id]",
+                        params: { courseId: cId, moduleId: nextModuleId, id: firstLessonDoc.id, title: firstLessonDoc.data().title }
+                    });
                     return;
                 }
             }
 
-            Alert.alert("COURSE COMPLETE! 🎉", "You finished the section!", 
-                [{ text: "Back to Menu", onPress: () => router.dismissTo({ pathname: "/child/course/[id]", params: { id: cId, title: title as string } }) }]
-            );
+            // Course complete - navigate to courses menu in nav bar
+            router.dismissTo("/(tabs)/courses");
         } catch (error) { console.error("Navigation Error", error); }
     };
 
@@ -288,7 +284,7 @@ const navigateToNextLesson = async () => {
     };
 
     const handleBalanceComplete = async (score: number, stars: number) => {
-        if (!auth.currentUser || hasExited.current) return;
+        if (!auth.currentUser || hasExited.current || completing) return;
         setCompleting(true);
         try {
             await ChildProgressService.markItemComplete(auth.currentUser.uid, id as string, score || 50, stars || 3);
