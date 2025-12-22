@@ -15,7 +15,6 @@ exports.markItemComplete = async (req, res) => {
         const progressSnap = await progressRef.get();
 
         if (!progressSnap.exists) {
-            // Create new progress document if it doesn't exist
             await progressRef.set({
                 totalPoints: points,
                 stars: stars,
@@ -32,7 +31,6 @@ exports.markItemComplete = async (req, res) => {
             const data = progressSnap.data();
             const completedLessons = data.completedLessons || [];
 
-            // Only award points if not already completed
             if (!completedLessons.includes(itemId)) {
                 await progressRef.update({
                     totalPoints: admin.firestore.FieldValue.increment(points),
@@ -41,7 +39,6 @@ exports.markItemComplete = async (req, res) => {
                     lastActivity: new Date()
                 });
 
-                // Sync to user doc
                 await userRef.update({
                     totalPoints: admin.firestore.FieldValue.increment(points)
                 });

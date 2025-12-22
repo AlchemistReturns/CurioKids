@@ -32,6 +32,25 @@ export const AuthService = {
 
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Registration failed');
+
+            // Auto-login after successful registration
+            return await this.login(email, password);
+        } catch (error) {
+            console.error(error);
+            throw error;
+        }
+    },
+
+    async changePassword(email: string, currentPassword: string, newPassword: string) {
+        try {
+            const response = await fetch(`${CONFIG.BACKEND_URL}/auth/change-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, currentPassword, newPassword })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to change password');
             return data;
         } catch (error) {
             console.error(error);

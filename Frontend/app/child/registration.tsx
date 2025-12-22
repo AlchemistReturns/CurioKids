@@ -28,7 +28,7 @@ const ChildRegistrationScreen = () => {
 
         try {
             await AuthService.register(email, password, name, null, 'child', parentKey);
-            router.replace("/child/dashboard");
+            router.replace("/(tabs)/dashboard");
         } catch (err: any) {
             console.error(err);
             setError(err.message || "Registration failed");

@@ -1,10 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
+import { AuthService } from "../../services/AuthService";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth } from "../../config/firebase";
 
 export default function ChangePassword() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -39,25 +38,24 @@ export default function ChangePassword() {
     setLoading(true);
 
     try {
-      const user = auth.currentUser;
+      const user = await AuthService.getCurrentUser();
+
       if (!user || !user.email) {
-        throw new Error("No user logged in");
+        throw new Error("No user logged in or email not found");
       }
 
-      // Re-authenticate user with current password
-      const credential = EmailAuthProvider.credential(user.email, currentPassword);
-      await reauthenticateWithCredential(user, credential);
-
-      // Update password
-      await updatePassword(user, newPassword);
+      await AuthService.changePassword(user.email, currentPassword, newPassword);
 
       Alert.alert(
         "Success",
-        "Password changed successfully",
+        "Password changed successfully. Please log in again.",
         [
           {
             text: "OK",
-            onPress: () => router.back(),
+            onPress: async () => {
+              await AuthService.logout();
+              router.replace("/login");
+            },
           },
         ]
       );
@@ -67,16 +65,7 @@ export default function ChangePassword() {
       setConfirmPassword("");
     } catch (error: any) {
       console.error("Password change error:", error);
-      let errorMessage = "Failed to change password";
-      
-      if (error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
-        errorMessage = "Current password is incorrect";
-      } else if (error.code === "auth/weak-password") {
-        errorMessage = "New password is too weak";
-      } else if (error.code === "auth/requires-recent-login") {
-        errorMessage = "Please log out and log in again before changing password";
-      }
-      
+      const errorMessage = error.message || "Failed to change password";
       Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);
@@ -88,7 +77,7 @@ export default function ChangePassword() {
       <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View className="flex-row items-center mt-4 mb-8">
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => router.back()}
             className="mr-4 p-2 bg-primary rounded-full"
           >
@@ -126,14 +115,14 @@ export default function ChangePassword() {
               secureTextEntry={!showCurrentPassword}
               autoCapitalize="none"
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setShowCurrentPassword(!showCurrentPassword)}
               className="pr-4"
             >
-              <Ionicons 
-                name={showCurrentPassword ? "eye-off-outline" : "eye-outline"} 
-                size={20} 
-                color="#3f51b5" 
+              <Ionicons
+                name={showCurrentPassword ? "eye-off-outline" : "eye-outline"}
+                size={20}
+                color="#3f51b5"
               />
             </TouchableOpacity>
           </View>
@@ -155,14 +144,14 @@ export default function ChangePassword() {
               secureTextEntry={!showNewPassword}
               autoCapitalize="none"
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setShowNewPassword(!showNewPassword)}
               className="pr-4"
             >
-              <Ionicons 
-                name={showNewPassword ? "eye-off-outline" : "eye-outline"} 
-                size={20} 
-                color="#3f51bf" 
+              <Ionicons
+                name={showNewPassword ? "eye-off-outline" : "eye-outline"}
+                size={20}
+                color="#3f51bf"
               />
             </TouchableOpacity>
           </View>
@@ -184,14 +173,14 @@ export default function ChangePassword() {
               secureTextEntry={!showConfirmPassword}
               autoCapitalize="none"
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setShowConfirmPassword(!showConfirmPassword)}
               className="pr-4"
             >
-              <Ionicons 
-                name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} 
-                size={20} 
-                color="#3f51bf" 
+              <Ionicons
+                name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                size={20}
+                color="#3f51bf"
               />
             </TouchableOpacity>
           </View>

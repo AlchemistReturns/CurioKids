@@ -15,7 +15,7 @@ exports.getChildProgress = async (req, res) => {
     try {
         const { uid } = req.params;
         const doc = await firestore.collection('child_progress').doc(uid).get();
-        if (!doc.exists) return res.json({ totalPoints: 0, stars: 0, completedLessons: [] }); // Default
+        if (!doc.exists) return res.json({ totalPoints: 0, stars: 0, completedLessons: [] });
         res.json(doc.data());
     } catch (error) {
         res.status(500).json({ error: error.message });

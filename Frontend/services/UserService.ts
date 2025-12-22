@@ -1,7 +1,7 @@
 import { CONFIG } from '../config/firebase';
 
 export const UserService = {
-    async getProfile(uid) {
+    async getProfile(uid: string) {
         try {
             const response = await fetch(`${CONFIG.BACKEND_URL}/users/${uid}/profile`);
             if (!response.ok) throw new Error('Failed to fetch profile');
@@ -12,7 +12,7 @@ export const UserService = {
         }
     },
 
-    async getProgress(uid) {
+    async getProgress(uid: string) {
         try {
             const response = await fetch(`${CONFIG.BACKEND_URL}/users/${uid}/progress`);
             if (!response.ok) throw new Error('Failed to fetch progress');
