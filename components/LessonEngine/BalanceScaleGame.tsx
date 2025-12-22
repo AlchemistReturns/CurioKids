@@ -216,19 +216,16 @@ export default function BalanceScaleGame({
                     console.log("Error playing success sound:", error);
                 }
                 setShowSuccess(true);
-                winTimerRef.current = setTimeout(() => {
-                    const score = 50;
-                    const stars = 3;
-                    onComplete(score, stars);
-                }, 900); // Auto-navigate after showing success (1200ms + 900ms = 2100ms total)
             }, 1200); // Delay to let scale visually balance before showing success
         }
         
-        // Cleanup only soundTimerRef on unmount or when dependencies change
-        // DO NOT clear winTimerRef as it needs to complete for auto-navigation
+        // Cleanup timers on unmount or when dependencies change
         return () => {
-            if (soundTimerRef.current && !showSuccess) {
+            if (soundTimerRef.current) {
                 clearTimeout(soundTimerRef.current);
+            }
+            if (winTimerRef.current) {
+                clearTimeout(winTimerRef.current);
             }
         };
     }, [leftTotal, rightTotal, placedWeights, showSuccess, onComplete]);
@@ -339,8 +336,10 @@ export default function BalanceScaleGame({
             <GestureHandlerRootView style={{ flex: 1 }}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => {
+                        // Clean up all timers before exiting
                         if (soundTimerRef.current) clearTimeout(soundTimerRef.current);
                         if (winTimerRef.current) clearTimeout(winTimerRef.current);
+                        setShowSuccess(false);
                         onExit();
                     }} style={styles.exitButton}>
                         <Ionicons name="close" size={28} color="#333" />
@@ -466,6 +465,16 @@ export default function BalanceScaleGame({
                         <Ionicons name="trophy" size={80} color="#FFD700" />
                         <Text style={styles.successText}>Perfect Balance!</Text>
                         <Text style={styles.successSubtext}>🎉 Great Job! 🎉</Text>
+                        <TouchableOpacity 
+                            style={styles.tryAgainButton}
+                            onPress={() => {
+                                const score = 50;
+                                const stars = 3;
+                                onComplete(score, stars);
+                            }}
+                        >
+                            <Text style={styles.tryAgainText}>Continue →</Text>
+                        </TouchableOpacity>
                     </View>
                 )}
 
