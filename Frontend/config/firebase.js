@@ -6,6 +6,12 @@ import {
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
+export const CONFIG = {
+    // Replace with your current IP address for physical device testing
+    // or 'http://10.0.2.2:3000' for Android Emulator
+    // or 'http://localhost:3000' for Web/iOS Simulator.
+    BACKEND_URL: 'http://192.168.0.104:3000/api'
+};
 
 const firebaseConfig = {
     apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,

@@ -1,0 +1,6 @@
+# local env files
+.env
+.env*.local
+
+serviceAccountKey.json
+node_modules

@@ -1,14 +1,4 @@
 import { router } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import {
-    collection,
-    doc,
-    getDocs,
-    query,
-    serverTimestamp,
-    setDoc,
-    where,
-} from "firebase/firestore";
 import React, { useState } from "react";
 import {
     ActivityIndicator,
@@ -17,7 +7,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { auth, firestore } from "../../config/firebase";
+import { AuthService } from "../../services/AuthService";
 
 const RegistrationScreen = () => {
     const [email, setEmail] = useState("");
@@ -25,23 +15,6 @@ const RegistrationScreen = () => {
     const [name, setName] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-
-    async function generateUniqueKey() {
-        let key;
-        let isUnique = false;
-        while (!isUnique) {
-            key = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-            const q = query(
-                collection(firestore, "users"),
-                where("linkKey", "==", key)
-            );
-            const snapshot = await getDocs(q);
-
-            isUnique = snapshot.empty;
-        }
-        return key;
-    }
 
     const handleSignUp = async () => {
         if (!email || !password) {
@@ -53,31 +26,11 @@ const RegistrationScreen = () => {
         setLoading(true);
 
         try {
-            const userCredential = await createUserWithEmailAndPassword(
-                auth,
-                email,
-                password
-            );
-            const parentUid = userCredential.user.uid;
-            const linkKey = await generateUniqueKey();
-
-            await setDoc(doc(firestore, "users", parentUid), {
-                role: "parent",
-                email: email,
-                name: name,
-                linkKey: linkKey,
-                createdAt: serverTimestamp(),
-            });
-
+            await AuthService.register(email, password, name, null, 'parent');
             router.replace("/parent/dashboard");
         } catch (err: any) {
             console.error(err);
-            setError(
-                err.message
-                    .replace("Firebase: Error (auth/", "")
-                    .replace(").", "")
-                    .replace(/-/g, " ")
-            );
+            setError(err.message || "Registration failed");
         } finally {
             setLoading(false);
         }

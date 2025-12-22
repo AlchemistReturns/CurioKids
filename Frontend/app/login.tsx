@@ -1,6 +1,4 @@
 import { router } from "expo-router";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
 import React, { useState } from "react";
 import {
     ActivityIndicator,
@@ -9,21 +7,13 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { auth, firestore } from "../config/firebase";
+import { AuthService } from "../services/AuthService";
 
 const LoginScreen = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-
-    const normalizeError = (err: any) => {
-        const code = err?.code ?? err?.message ?? "unknown";
-        return String(code)
-            .replace("auth/", "")
-            .replace(/[-_.()]/g, " ")
-            .trim();
-    };
 
     const handleSignIn = async () => {
         if (!email || !password) {
@@ -35,30 +25,11 @@ const LoginScreen = () => {
         setLoading(true);
 
         try {
-            // 1) Sign in
-            const cred = await signInWithEmailAndPassword(
-                auth,
-                email,
-                password
-            );
-            const uid = cred.user.uid as string;
-
-            // 2) Read user doc to get role
-            const userDocRef = doc(firestore, "users", uid);
-            const userSnap = await getDoc(userDocRef);
-
-            if (!userSnap.exists()) {
-                // No user document — sign out and show helpful message
-                await auth.signOut();
-                throw new Error(
-                    "No user profile found. Please complete registration."
-                );
-            }
-
+            await AuthService.login(email, password);
             router.replace("/(tabs)/dashboard");
         } catch (err: any) {
             console.error(err);
-            setError(normalizeError(err));
+            setError(err.message || "Login failed");
         } finally {
             setLoading(false);
         }

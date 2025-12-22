@@ -1,15 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { CourseService } from "../../../services/CourseService";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { firestore } from "../../../config/firebase";
+
 
 export default function CourseDetailsScreen() {
     const { id, title, color } = useLocalSearchParams();
@@ -24,24 +24,32 @@ export default function CourseDetailsScreen() {
 
     const fetchModules = async () => {
         try {
-            const modulesRef = collection(firestore, "courses", id as string, "modules");
-            const q = query(modulesRef, orderBy("order", "asc"));
-            const snapshot = await getDocs(q);
+            const modulesData = await CourseService.getModules(id as string);
 
-            const modulesData = await Promise.all(snapshot.docs.map(async (doc) => {
-                const lessonsRef = collection(firestore, "courses", id as string, "modules", doc.id, "lessons");
-                const lessonsQ = query(lessonsRef, orderBy("order", "asc"));
-                const lessonsSnapshot = await getDocs(lessonsQ);
-                const lessons = lessonsSnapshot.docs.map(lDoc => ({ id: lDoc.id, ...lDoc.data() }));
+            // Note: The previous logic fetched lessons for each module. 
+            // My default `getModules` endpoint only returns modules.
+            // I should technically enhance the backend to return modules WITH lessons or fetch them here.
+            // Given the requirement "no DB connection", I must use API.
+            // Option 1: Enhance Backend `getModules` to include lessons (Best for performance).
+            // Option 2: Loop fetch lessons here (Slow).
+            // Let's loop fetch for now as it's safer without altering backend schema too much, 
+            // OR better: I will assume the backend `getModules` handles deep fetch IF I modified it. 
+            // Actually, I didn't modify it to be deep. 
+            // Let's do the loop here using CourseService.getLessons.
 
+            const modulesWithLessons = await Promise.all(modulesData.map(async (module: any) => {
+                const lessons = await CourseService.getLessons(id as string, module.id);
+                const sortedLessons = lessons.sort((a: any, b: any) => a.order - b.order);
                 return {
-                    id: doc.id,
-                    ...doc.data(),
-                    lessons
+                    ...module,
+                    lessons: sortedLessons
                 };
             }));
 
-            setModules(modulesData);
+            // Sort modules
+            const sortedModules = modulesWithLessons.sort((a: any, b: any) => a.order - b.order);
+
+            setModules(sortedModules);
         } catch (error) {
             console.error("Error fetching modules:", error);
         } finally {

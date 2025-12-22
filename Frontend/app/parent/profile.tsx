@@ -1,11 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { signOut, User } from "firebase/auth";
-import { collection, getDocs, query, where } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth, firestore } from "../../config/firebase";
+import { AuthService } from "../../services/AuthService";
+import { UserService } from "../../services/UserService";
+import { User } from "../../types";
 
 export default function ParentProfile({ user }: { user: User }) {
   const [childCount, setChildCount] = useState(0);
@@ -13,9 +13,8 @@ export default function ParentProfile({ user }: { user: User }) {
   useEffect(() => {
     const fetchChildren = async () => {
       try {
-        const q = query(collection(firestore, "users"), where("parentUid", "==", user.uid));
-        const snapshot = await getDocs(q);
-        setChildCount(snapshot.size);
+        const children = await UserService.getChildren(user.uid);
+        setChildCount(children.length);
       } catch (e) {
         console.log("Error fetching children count", e);
       }
@@ -25,7 +24,7 @@ export default function ParentProfile({ user }: { user: User }) {
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
+      await AuthService.logout();
       router.replace("/login");
     } catch (error) {
       Alert.alert("Error", "Failed to sign out");
@@ -33,7 +32,7 @@ export default function ParentProfile({ user }: { user: User }) {
   };
 
   const SettingItem = ({ icon, label, subtext, onPress }: { icon: any, label: string, subtext?: string, onPress?: () => void }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       onPress={onPress}
       className="flex-row items-center bg-primary/20 p-4 rounded-2xl mb-3 border border-primary active:bg-primary"
     >
@@ -75,15 +74,15 @@ export default function ParentProfile({ user }: { user: User }) {
         <Text className="text-primary text-lg font-bold mb-4">Account Settings</Text>
         <View className="mb-8">
           <SettingItem icon="notifications-outline" label="Notifications" subtext="Email & Push alerts" />
-          <SettingItem 
-            icon="lock-closed-outline" 
-            label="Security" 
-            subtext="Change password" 
+          <SettingItem
+            icon="lock-closed-outline"
+            label="Security"
+            subtext="Change password"
             onPress={() => router.push("/parent/change-password")}
           />
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handleSignOut}
           className="flex-row bg-[#D9534F] justify-center items-center py-4 rounded-xl mb-10"
         >

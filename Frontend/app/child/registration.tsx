@@ -1,14 +1,4 @@
 import { router } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import {
-    collection,
-    doc,
-    getDocs,
-    query,
-    serverTimestamp,
-    setDoc,
-    where,
-} from "firebase/firestore";
 import React, { useState } from "react";
 import {
     ActivityIndicator,
@@ -17,7 +7,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { auth, firestore } from "../../config/firebase";
+import { AuthService } from "../../services/AuthService";
 
 const ChildRegistrationScreen = () => {
     const [email, setEmail] = useState("");
@@ -37,58 +27,11 @@ const ChildRegistrationScreen = () => {
         setLoading(true);
 
         try {
-            // Normalize the parentKey the same way you generate it (trim/uppercase)
-            const normalizedKey = parentKey.trim().toUpperCase();
-
-            // Find parent by linkKey (and role === 'parent' if you use that field)
-            const q = query(
-                collection(firestore, "users"),
-                where("linkKey", "==", normalizedKey),
-                where("role", "==", "parent")
-            );
-            const parentSnap = await getDocs(q);
-
-            if (parentSnap.empty) {
-                throw new Error(
-                    "Invalid parent key. Please check and try again."
-                );
-            }
-
-            const parentDoc = parentSnap.docs[0];
-            const parentUid = parentDoc.id;
-
-            // Create the child auth user
-            const userCredential = await createUserWithEmailAndPassword(
-                auth,
-                email,
-                password
-            );
-            const childUid = userCredential.user.uid;
-
-            // Create the child user document
-            await setDoc(doc(firestore, "users", childUid), {
-                role: "child",
-                email: email,
-                name: name,
-                parentUid: parentUid,
-                createdAt: serverTimestamp(),
-            });
-
-            // Initialize child progress (points, stars, etc.)
-            const { ChildProgressService } = require("../../services/ChildProgressService");
-            await ChildProgressService.initializeProgress(childUid);
-
+            await AuthService.register(email, password, name, null, 'child', parentKey);
             router.replace("/child/dashboard");
         } catch (err: any) {
             console.error(err);
-            const message =
-                err?.message ?? err?.code
-                    ? String(err.message || err.code)
-                        .replace("Firebase: Error (auth/", "")
-                        .replace(").", "")
-                        .replace(/-/g, " ")
-                    : "An unknown error occurred.";
-            setError(message);
+            setError(err.message || "Registration failed");
         } finally {
             setLoading(false);
         }

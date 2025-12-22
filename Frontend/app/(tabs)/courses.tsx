@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { collection, getDocs, query } from "firebase/firestore";
+import { CourseService } from "../../services/CourseService";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -10,7 +10,7 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { firestore } from "../../config/firebase";
+
 
 export default function Courses() {
     const [courses, setCourses] = useState<any[]>([]);
@@ -22,14 +22,7 @@ export default function Courses() {
 
     const fetchCourses = async () => {
         try {
-            // Assuming 'order' field might not exist on root courses for now, but good practice.
-            // If no order, just getDocs(collection(...))
-            const q = query(collection(firestore, "courses"));
-            const querySnapshot = await getDocs(q);
-            const coursesData = querySnapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-            }));
+            const coursesData = await CourseService.getCourses();
             setCourses(coursesData);
         } catch (error) {
             console.error("Error fetching courses:", error);

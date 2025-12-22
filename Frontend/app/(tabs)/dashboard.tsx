@@ -1,9 +1,8 @@
 import { router } from "expo-router";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
-import { auth, firestore } from "../../config/firebase";
+import { AuthService } from "../../services/AuthService";
+import { User } from "../../types";
 
 // Import the distinct dashboards
 import ChildDashboardScreen from "../child/dashboard";
@@ -15,46 +14,26 @@ export default function Dashboard() {
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    checkUser();
+  }, []);
+
+  const checkUser = async () => {
+    try {
+      const currentUser = await AuthService.getCurrentUser();
+
       if (currentUser) {
-        setUser(currentUser);
+        setUser(currentUser as any); // Type assertion or update User type
+        setRole(currentUser.role || 'child');
       } else {
         router.replace("/login");
       }
-      // Don't stop loading yet, we need the role
-    });
-
-    return unsubscribe;
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const snap = await getDoc(doc(firestore, "users", user.uid));
-        if (cancelled) return;
-
-        if (snap.exists()) {
-          const userData = snap.data();
-          setRole(userData.role ?? null);
-        } else {
-          // No profile found
-          await signOut(auth);
-          router.replace("/");
-        }
-      } catch (e) {
-        console.error("Failed to load user profile", e);
-        try { await signOut(auth); } catch {}
-        router.replace("/");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [user]);
+    } catch (e) {
+      console.error("Failed to load user profile", e);
+      router.replace("/login");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading || role === null) {
     return (
@@ -82,9 +61,9 @@ export default function Dashboard() {
       <Text className="text-primary text-center">
         Your account does not have a valid role assigned. Please contact support.
       </Text>
-      <Text 
+      <Text
         className="mt-8 text-white font-bold bg-secondary/50 px-6 py-3 rounded-xl overflow-hidden"
-        onPress={() => signOut(auth).then(() => router.replace("/login"))}
+        onPress={() => AuthService.logout().then(() => router.replace("/login"))}
       >
         Sign Out
       </Text>

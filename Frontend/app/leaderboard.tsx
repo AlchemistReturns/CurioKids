@@ -1,9 +1,9 @@
-import { auth, firestore } from '@/config/firebase';
 import { Ionicons } from "@expo/vector-icons";
-import { collection, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AuthService } from "../services/AuthService";
+import { UserService } from "../services/UserService";
 
 interface LeaderboardUser {
   id: string;
@@ -18,55 +18,58 @@ export default function Leaderboard() {
   const [currentUserData, setCurrentUserData] = useState<LeaderboardUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Loading rankings...");
 
   useEffect(() => {
-    if (auth.currentUser) {
-      setCurrentUserId(auth.currentUser.uid);
-    }
-    recalculateAndFetchLeaderboard();
+    loadLeaderboard();
   }, []);
 
-  const recalculateAndFetchLeaderboard = async () => {
+  const loadLeaderboard = async () => {
     try {
-      setStatusMessage("Updating scores...");
-      const usersRef = collection(firestore, 'users');
-
-      // Fetch ALL children to calculate accurate ranks
-      const q = query(usersRef, where("role", "==", "child"));
-      const querySnapshot = await getDocs(q);
-
-      const allChildren: LeaderboardUser[] = [];
-      const batch = writeBatch(firestore);
-      let updatesNeeded = false;
-
-      querySnapshot.forEach((document) => {
-        const data = document.data();
-
-        allChildren.push({
-          id: document.id,
-          name: data.name || "Unknown",
-          totalPoints: data.totalPoints || 0,
-        });
-      });
-
-      if (updatesNeeded) {
-        await batch.commit();
+      const user = await AuthService.getCurrentUser();
+      if (user) {
+        setCurrentUserId(user.uid);
+        setRole(user.role || 'child');
       }
 
-      // Sort Descending
-      allChildren.sort((a, b) => b.totalPoints - a.totalPoints);
+      setStatusMessage("Updating scores...");
+      const leaderboardData = await UserService.getLeaderboard();
 
-      // Assign Ranks and Slice Top 20
-      const top20 = allChildren.slice(0, 20);
-      setLeaders(top20);
+      // Backend returns top 20, but we might want to ensure sorting here just in case? 
+      // Backend already sorts.
 
-      // Determine User Rank logic
-      if (auth.currentUser) {
-        const myIndex = allChildren.findIndex(child => child.id === auth.currentUser?.uid);
-        if (myIndex !== -1) {
-          // Store user data with their actual rank (1-based)
-          setCurrentUserData({ ...allChildren[myIndex], rank: myIndex + 1 });
+      // Add ranks
+      const rankedLeaders = leaderboardData.map((item: any, index: number) => ({
+        ...item,
+        rank: index + 1
+      }));
+
+      setLeaders(rankedLeaders);
+
+      // Find current user in the list or assume they are below top 20?
+      // Note: The original code fetched ALL users to find the exact rank.
+      // Fetching ALL users is expensive and bad for scalability.
+      // For now, if user is not in top 20, we may not know their exact rank unless we have a specific "getMyRank" endpoint.
+      // I will implement "if in top 20, show rank". If not, just show user data (points) without specific rank > 20 for now OR
+      // ideally, I should add `getUserRank` endpoint later.
+      // For this refactor, let's keep it simple: If in top 20, highlight. 
+
+      if (user) {
+        const myEntry = rankedLeaders.find((l: any) => l.id === user.uid);
+        if (myEntry) {
+          setCurrentUserData(myEntry);
+        } else {
+          // Fallback: Fetch my profile to at least show points
+          const myProfile = await UserService.getProfile(user.uid);
+          if (myProfile) {
+            setCurrentUserData({
+              id: user.uid,
+              name: myProfile.name || "You",
+              totalPoints: myProfile.totalPoints || 0,
+              rank: myProfile.rank || 999 // Placeholder indicating > 20
+            });
+          }
         }
       }
 
@@ -152,8 +155,8 @@ export default function Leaderboard() {
         }
       />
 
-      {/* Sticky Footer: Only show if user exists AND is NOT in the top 20 list */}
-      {currentUserData && (currentUserData.rank || 0) > 20 && (
+      {/* Sticky Footer: Only show if user exists, is a CHILD, AND is NOT in the top 20 list */}
+      {currentUserData && role === 'child' && (currentUserData.rank || 0) > 20 && (
         <View className="absolute bottom-0 w-full bg-base pt-4 pb-8 border-t-2 border-ternary shadow-2xl">
           <Text className="text-center text-secondary text-xs uppercase mb-2">Your Ranking</Text>
           <LeaderCard

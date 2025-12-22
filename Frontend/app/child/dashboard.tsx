@@ -1,60 +1,54 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth, firestore } from "../../config/firebase";
+import { AuthService } from "../../services/AuthService";
+import { UserService } from "../../services/UserService";
 
 export default function ChildDashboardScreen() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [childData, setChildData] = useState<any>(null);
   const [progressData, setProgressData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Auth Check
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-      } else {
+  // Load data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const currentUser = await AuthService.getCurrentUser();
+
+      if (!currentUser) {
         router.replace("/login");
+        return;
       }
-    });
-    return unsubscribe;
-  }, []);
 
-  // 2. Real-time Data Listeners
-  useEffect(() => {
-    if (!user) return;
+      setUser(currentUser); // From local storage
 
-    // User Profile Listener
-    const userDocRef = doc(firestore, "users", user.uid);
-    const unsubUser = onSnapshot(userDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setChildData(docSnap.data());
-      }
-    });
+      // Parallel fetch for speed
+      const [profile, progress] = await Promise.all([
+        UserService.getProfile(currentUser.uid),
+        UserService.getProgress(currentUser.uid)
+      ]);
 
-    // Progress Listener
-    const progressDocRef = doc(firestore, "child_progress", user.uid);
-    const unsubProgress = onSnapshot(progressDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setProgressData(docSnap.data());
-      }
+      setChildData(profile);
+      setProgressData(progress);
+    } catch (e) {
+      console.error(e);
+    } finally {
       setLoading(false);
-    });
-
-    return () => {
-      unsubUser();
-      unsubProgress();
-    };
-  }, [user]);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
+      await AuthService.logout();
       router.replace("/login");
     } catch (error) {
       Alert.alert("Error", "Error signing out");

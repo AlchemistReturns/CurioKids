@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
@@ -15,11 +14,11 @@ import {
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth, firestore } from "../../../../config/firebase";
+import { AuthService } from "../../../../services/AuthService";
 import { ChildProgressService } from "../../../../services/ChildProgressService";
+import { CourseService } from "../../../../services/CourseService";
 
 // --- 🔊 AUDIO MANAGER ---
-// Make sure this path is correct based on your folder structure!
 import { audioManager } from "@/components/LessonEngine/AudioManager";
 
 // Game Components
@@ -82,29 +81,29 @@ const LumoAvatar = ({ mood }: { mood: 'happy' | 'thinking' | 'sad' | 'success' }
 
 export default function LessonScreen() {
     const { courseId, moduleId, id, title } = useLocalSearchParams();
-    
+
     // Data State
     const [lesson, setLesson] = useState<any>(null);
     const [currentModuleOrder, setCurrentModuleOrder] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [completing, setCompleting] = useState(false);
     const hasExited = useRef(false);
-    
+
     // Game Logic State
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [isCorrect, setIsCorrect] = useState<boolean>(false);
     const [lumoMood, setLumoMood] = useState<'happy' | 'thinking' | 'sad' | 'success'>('thinking');
-    
+
     // Sequencing State
     const [sequenceStep, setSequenceStep] = useState<number>(0);
     const [completedSequence, setCompletedSequence] = useState<string[]>([]);
 
     // --- ANIMATION VALUES ---
-    const shakeAnim = useRef(new Animated.Value(0)).current; 
-    
-    useEffect(() => { 
+    const shakeAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
         audioManager.loadSounds(); // Ensure SFX are loaded
-        fetchLesson(); 
+        fetchLesson();
     }, [id]);
 
     const fetchLesson = async () => {
@@ -115,15 +114,18 @@ export default function LessonScreen() {
             const mId = moduleId as string;
             const lId = id as string;
 
-            const lessonRef = doc(firestore, "courses", cId, "modules", mId, "lessons", lId);
-            const lessonSnap = await getDoc(lessonRef);
-            
-            const moduleRef = doc(firestore, "courses", cId, "modules", mId);
-            const moduleSnap = await getDoc(moduleRef);
+            // Fetch Lesson Data
+            const lessonData = await CourseService.getLesson(cId, mId, lId);
 
-            if (lessonSnap.exists() && moduleSnap.exists()) {
-                setLesson(lessonSnap.data());
-                setCurrentModuleOrder(moduleSnap.data().order);
+            // We also need module info for order...
+            // Optimization: Maybe fetch all modules once? 
+            // For now, let's fetch modules to find current module order (inefficient but strict on no DB)
+            const modules = await CourseService.getModules(cId);
+            const currentModule = modules.find((m: any) => m.id === mId);
+
+            if (lessonData && currentModule) {
+                setLesson(lessonData);
+                setCurrentModuleOrder(currentModule.order);
                 resetGameState();
             } else {
                 router.back();
@@ -203,43 +205,39 @@ export default function LessonScreen() {
         }
     };
 
-const navigateToNextLesson = async () => {
+    const navigateToNextLesson = async () => {
         try {
             const cId = courseId as string;
             const mId = moduleId as string;
 
-            const nextLessonOrder = lesson.order + 1;
-            const lessonsRef = collection(firestore, "courses", cId, "modules", mId, "lessons");
-            const lessonQ = query(lessonsRef, where("order", "==", nextLessonOrder), limit(1));
-            const lessonSnap = await getDocs(lessonQ);
+            // 1. Get all lessons in current module to find next one
+            const lessons = await CourseService.getLessons(cId, mId);
+            const sortedLessons = lessons.sort((a: any, b: any) => a.order - b.order);
+            const currentIndex = sortedLessons.findIndex((l: any) => l.id === id);
 
-            if (!lessonSnap.empty) {
-                const nextDoc = lessonSnap.docs[0];
+            if (currentIndex !== -1 && currentIndex < sortedLessons.length - 1) {
+                const nextLesson = sortedLessons[currentIndex + 1];
                 router.replace({
                     pathname: "/child/course/lesson/[id]",
-                    params: { courseId: cId, moduleId: mId, id: nextDoc.id, title: nextDoc.data().title }
+                    params: { courseId: cId, moduleId: mId, id: nextLesson.id, title: nextLesson.title }
                 });
                 return;
             }
 
-            const nextModuleOrder = currentModuleOrder + 1;
-            const modulesRef = collection(firestore, "courses", cId, "modules");
-            const moduleQ = query(modulesRef, where("order", "==", nextModuleOrder), limit(1));
-            const moduleSnap = await getDocs(moduleQ);
+            // 2. Next Module
+            const modules = await CourseService.getModules(cId);
+            const sortedModules = modules.sort((a: any, b: any) => a.order - b.order);
+            const currentModIndex = sortedModules.findIndex((m: any) => m.id === mId);
 
-            if (!moduleSnap.empty) {
-                const nextModuleDoc = moduleSnap.docs[0];
-                const nextModuleId = nextModuleDoc.id;
-                const nextModLessonsRef = collection(firestore, "courses", cId, "modules", nextModuleId, "lessons");
-                const firstLessonQ = query(nextModLessonsRef, orderBy("order", "asc"), limit(1));
-                const firstLessonSnap = await getDocs(firstLessonQ);
-
-                if (!firstLessonSnap.empty) {
-                    const firstLessonDoc = firstLessonSnap.docs[0];
-                    // Navigate directly to next module without alert
+            if (currentModIndex !== -1 && currentModIndex < sortedModules.length - 1) {
+                const nextModule = sortedModules[currentModIndex + 1];
+                // Get first lesson of next module
+                const nextModLessons = await CourseService.getLessons(cId, nextModule.id);
+                if (nextModLessons.length > 0) {
+                    const firstLesson = nextModLessons.sort((a: any, b: any) => a.order - b.order)[0];
                     router.replace({
                         pathname: "/child/course/lesson/[id]",
-                        params: { courseId: cId, moduleId: nextModuleId, id: firstLessonDoc.id, title: firstLessonDoc.data().title }
+                        params: { courseId: cId, moduleId: nextModule.id, id: firstLesson.id, title: firstLesson.title }
                     });
                     return;
                 }
@@ -250,44 +248,49 @@ const navigateToNextLesson = async () => {
         } catch (error) { console.error("Navigation Error", error); }
     };
 
+
     const handleComplete = async () => {
-        if (!auth.currentUser) return;
-        
+        const user = await AuthService.getCurrentUser();
+        if (!user) return;
+
         // Ensure Logic games are actually solved
         const isGame = ['logic_pattern', 'logic_sorting', 'logic_sequencing', 'logic_drag'].includes(lesson.type);
         if (isGame && !isCorrect) { triggerShake(); return; }
 
         setCompleting(true);
         try {
-            await ChildProgressService.markItemComplete(auth.currentUser.uid, id as string, lesson.points || 10, lesson.stars || 1);
+            await ChildProgressService.markItemComplete(user.uid, id as string, lesson.points || 10, lesson.stars || 1);
             await navigateToNextLesson();
         } catch (error) { console.error(error); } finally { setCompleting(false); }
     };
 
     // --- EXTERNAL GAME HANDLERS ---
     const handleTracingComplete = async (result: GameResult) => {
-        if (!auth.currentUser || hasExited.current) return;
+        const user = await AuthService.getCurrentUser();
+        if (!user || hasExited.current) return;
         setCompleting(true);
         try {
-            await ChildProgressService.markItemComplete(auth.currentUser.uid, id as string, result.score || lesson.points, result.stars || 3);
+            await ChildProgressService.markItemComplete(user.uid, id as string, result.score || lesson.points, result.stars || 3);
             await navigateToNextLesson();
         } catch (e) { console.error(e); } finally { setCompleting(false); }
     };
 
     const handleBubbleComplete = async (score: number, stars: number) => {
-        if (!auth.currentUser || hasExited.current) return;
+        const user = await AuthService.getCurrentUser();
+        if (!user || hasExited.current) return;
         setCompleting(true);
         try {
-            await ChildProgressService.markItemComplete(auth.currentUser.uid, id as string, score || 50, stars || 3);
+            await ChildProgressService.markItemComplete(user.uid, id as string, score || 50, stars || 3);
             await navigateToNextLesson();
         } catch (e) { console.error(e); } finally { setCompleting(false); }
     };
 
     const handleBalanceComplete = async (score: number, stars: number) => {
-        if (!auth.currentUser || hasExited.current || completing) return;
+        const user = await AuthService.getCurrentUser();
+        if (!user || hasExited.current || completing) return;
         setCompleting(true);
         try {
-            await ChildProgressService.markItemComplete(auth.currentUser.uid, id as string, score || 50, stars || 3);
+            await ChildProgressService.markItemComplete(user.uid, id as string, score || 50, stars || 3);
             await navigateToNextLesson();
         } catch (e) { console.error(e); } finally { setCompleting(false); }
     };
@@ -303,7 +306,7 @@ const navigateToNextLesson = async () => {
     const renderPatternGame = () => {
         // Support both "options" (Pattern) and "draggableOptions" (Drag converted to Tap)
         const currentOptions = lesson.data.options || lesson.data.draggableOptions || [];
-        
+
         return (
             <View className="flex-1 items-center justify-center">
                 <View className="flex-row gap-2 mb-10 p-4 bg-white/30 rounded-2xl flex-wrap justify-center min-h-[100px]">
@@ -311,8 +314,8 @@ const navigateToNextLesson = async () => {
                         const isMissingSlot = item === "?";
                         return (
                             <View key={index} className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl justify-center items-center shadow-sm 
-                                ${isMissingSlot 
-                                    ? (isCorrect ? 'bg-green-400 border-b-4 border-green-600' : 'bg-black/10 border-2 border-dashed border-white') 
+                                ${isMissingSlot
+                                    ? (isCorrect ? 'bg-green-400 border-b-4 border-green-600' : 'bg-black/10 border-2 border-dashed border-white')
                                     : 'bg-white border-b-4 border-gray-200'}`}>
                                 <Text className="text-4xl">
                                     {isMissingSlot ? (isCorrect ? lesson.data.correctAnswer : "?") : item}
@@ -328,13 +331,13 @@ const navigateToNextLesson = async () => {
                         if (isCorrect && option === lesson.data.correctAnswer) return <View key={index} className="w-20 h-20" />; // Invisible placeholder
 
                         return (
-                            <TouchableOpacity 
-                                key={index} 
+                            <TouchableOpacity
+                                key={index}
                                 onPress={() => handlePatternSelect(option)}
                                 disabled={isCorrect}
                                 activeOpacity={0.7}
                             >
-                                <Animated.View 
+                                <Animated.View
                                     style={{ transform: [{ translateX: shakeAnim }] }}
                                     className="w-20 h-20 bg-white rounded-2xl justify-center items-center shadow-lg border-b-4 border-purple-200"
                                 >
@@ -354,17 +357,17 @@ const navigateToNextLesson = async () => {
                 {lesson.data.items.map((item: string, index: number) => {
                     const isSelected = selectedOption === item;
                     const isTarget = item === lesson.data.correctAnswer;
-                    
+
                     if (isCorrect && !isTarget) return <View key={index} className="w-24 h-24 opacity-20 bg-gray-200 rounded-xl m-2" />;
 
                     return (
-                        <TouchableOpacity 
-                            key={index} 
+                        <TouchableOpacity
+                            key={index}
                             onPress={() => handleSortingSelect(item)}
                             disabled={isCorrect}
                             className="m-2"
                         >
-                            <Animated.View 
+                            <Animated.View
                                 style={{ transform: [{ translateX: isSelected && !isTarget ? shakeAnim : 0 }, { scale: isCorrect && isTarget ? 1.2 : 1 }] }}
                                 className={`w-24 h-24 rounded-2xl justify-center items-center shadow-lg border-b-4 
                                 ${isCorrect && isTarget ? 'bg-green-400 border-green-600' : 'bg-white border-blue-200'}`}
@@ -376,9 +379,9 @@ const navigateToNextLesson = async () => {
                 })}
             </View>
             <View className="mt-8 bg-white/20 p-4 rounded-xl">
-                 <Text className="text-white text-lg font-bold text-center">
-                     {isCorrect ? lesson.data.explanation : "Tap the one that fits the question!"}
-                 </Text>
+                <Text className="text-white text-lg font-bold text-center">
+                    {isCorrect ? lesson.data.explanation : "Tap the one that fits the question!"}
+                </Text>
             </View>
         </View>
     );
@@ -410,11 +413,11 @@ const navigateToNextLesson = async () => {
                     if (isUsed) return <View key={index} className="w-20 h-20" />;
 
                     return (
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             key={index}
                             onPress={() => handleSequencingSelect(item)}
                         >
-                            <Animated.View 
+                            <Animated.View
                                 style={{ transform: [{ translateX: shakeAnim }] }}
                                 className="w-20 h-20 bg-white rounded-2xl justify-center items-center shadow-lg border-b-4 border-orange-300"
                             >
@@ -435,14 +438,14 @@ const navigateToNextLesson = async () => {
     if (lesson.type === 'tracing') {
         return (
             <View className="flex-1 bg-[#edf0f7]">
-                <TracingGame 
-                    key={id as string} 
-                    data={lesson.data} 
+                <TracingGame
+                    key={id as string}
+                    data={lesson.data}
                     onComplete={handleTracingComplete}
                     onExit={() => { hasExited.current = true; router.back(); }}
                 />
                 {completing && (
-                     <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
+                    <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
                         <ActivityIndicator size="large" color="#FFD700" />
                         <Text className="text-white font-bold mt-4">Saving...</Text>
                     </View>
@@ -455,12 +458,12 @@ const navigateToNextLesson = async () => {
     if (lesson.type === 'bubble_pop') {
         return (
             <View className="flex-1 bg-[#E0F7FA]">
-                <BubblePopGame 
+                <BubblePopGame
                     onComplete={handleBubbleComplete}
                     onExit={() => { hasExited.current = true; router.back(); }}
                 />
-                 {completing && (
-                     <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
+                {completing && (
+                    <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
                         <ActivityIndicator size="large" color="#FFD700" />
                         <Text className="text-white font-bold mt-4">Great Job! Saving...</Text>
                     </View>
@@ -502,7 +505,7 @@ const navigateToNextLesson = async () => {
 
     if (isLogicGame) {
         return (
-            <SafeAreaView className="flex-1 bg-[#673AB7]" edges={['top', 'bottom']}> 
+            <SafeAreaView className="flex-1 bg-[#673AB7]" edges={['top', 'bottom']}>
                 {/* Header */}
                 <View className="flex-row justify-between items-center px-4 py-2">
                     <TouchableOpacity onPress={() => router.back()} className="bg-white/20 p-2 rounded-full">
@@ -511,7 +514,7 @@ const navigateToNextLesson = async () => {
                     <View className="bg-white/20 px-4 py-1 rounded-full">
                         <Text className="text-white font-bold">Level {lesson.order}</Text>
                     </View>
-                    <View className="w-10" /> 
+                    <View className="w-10" />
                 </View>
 
                 {/* Question */}
@@ -526,7 +529,7 @@ const navigateToNextLesson = async () => {
                     <View className="absolute top-0 right-4 z-10">
                         <LumoAvatar mood={lumoMood} />
                     </View>
-                    
+
                     {(lesson.type === 'logic_pattern' || lesson.type === 'logic_drag') && renderPatternGame()}
                     {lesson.type === 'logic_sorting' && renderSortingGame()}
                     {lesson.type === 'logic_sequencing' && renderSequencingGame()}
@@ -535,7 +538,7 @@ const navigateToNextLesson = async () => {
                 {/* Footer */}
                 <View className="p-6">
                     {isCorrect ? (
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             onPress={handleComplete}
                             disabled={completing}
                             className="bg-green-400 w-full py-4 rounded-2xl border-b-4 border-green-600 shadow-xl flex-row justify-center items-center"
@@ -560,7 +563,7 @@ const navigateToNextLesson = async () => {
     // 5. STORY MODE (WITH CONDITIONAL LUMO INTEGRATION)
     const isLogicLandCourse = courseId === 'logic_lumo';
     const isBalanceBuddiesCourse = courseId === 'balance_buddies';
-    
+
     // Get module-specific colors for Balance Buddies
     const getModuleBackgroundColor = () => {
         if (isBalanceBuddiesCourse) {
@@ -574,7 +577,7 @@ const navigateToNextLesson = async () => {
         }
         return isLogicLandCourse ? 'bg-purple-50' : 'bg-gray-50';
     };
-    
+
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -590,20 +593,20 @@ const navigateToNextLesson = async () => {
                     <View className={`bg-white p-6 rounded-2xl shadow-sm ${isLogicLandCourse ? 'mt-8 border border-purple-100' : isBalanceBuddiesCourse ? 'border border-red-100' : 'border border-gray-100'}`}>
                         <Text className="text-2xl text-center text-gray-800 leading-9">{lesson.content}</Text>
                     </View>
-                    <TouchableOpacity 
-                        onPress={handleComplete} 
+                    <TouchableOpacity
+                        onPress={handleComplete}
                         disabled={completing}
                         className={`mt-10 px-10 py-4 rounded-full shadow-lg border-b-4 active:translate-y-1 ${isLogicLandCourse ? 'bg-purple-600 border-purple-800' : isBalanceBuddiesCourse ? 'bg-red-600 border-red-800' : 'bg-blue-600 border-blue-800'}`}
                     >
-                         {completing ? <ActivityIndicator color="white" /> : (
+                        {completing ? <ActivityIndicator color="white" /> : (
                             <Text className="text-white text-xl font-bold">
-                                {lesson.type === 'story_outro' 
-                                    ? (isBalanceBuddiesCourse && currentModuleOrder === 4 
-                                        ? 'Return to courses 📚' 
-                                        : 'Next Adventure! →') 
+                                {lesson.type === 'story_outro'
+                                    ? (isBalanceBuddiesCourse && currentModuleOrder === 4
+                                        ? 'Return to courses 📚'
+                                        : 'Next Adventure! →')
                                     : 'Start adventure 🚀'}
                             </Text>
-                         )}
+                        )}
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>

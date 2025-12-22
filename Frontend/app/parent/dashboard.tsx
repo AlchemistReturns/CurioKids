@@ -1,20 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from 'expo-clipboard';
-import { router } from "expo-router";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import {
-  collection,
-  doc,
-  getCountFromServer,
-  getDoc,
-  onSnapshot,
-  query,
-  where,
-} from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth, firestore } from "../../config/firebase";
+import { AuthService } from "../../services/AuthService";
+import { UserService } from "../../services/UserService";
 
 // Extended Child Interface to include Rank
 interface ChildData {
@@ -27,85 +18,46 @@ interface ChildData {
 }
 
 const ParentDashboardScreen = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [linkKey, setLinkKey] = useState<string | null>(null);
   const [children, setChildren] = useState<ChildData[]>([]);
   const [childrenLoading, setChildrenLoading] = useState(false);
 
-  // 1. Auth Listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) setUser(currentUser);
-      else router.replace("/login");
-    });
-    return unsubscribe;
-  }, []);
+  // Load data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
 
-  // 2. Fetch Parent Link Key
-  useEffect(() => {
-    if (!user) return;
-    const fetchLinkKey = async () => {
-      try {
-        const snap = await getDoc(doc(firestore, "users", user.uid));
-        if (snap.exists()) {
-          setLinkKey((snap.data() as any).linkKey ?? null);
-        }
-      } catch (e) {
-        console.error("Failed to load parent linkKey", e);
+  const loadData = async () => {
+    try {
+      const currentUser = await AuthService.getCurrentUser();
+      if (!currentUser) {
+        router.replace("/login");
+        return;
       }
-    };
-    fetchLinkKey();
-  }, [user]);
+      setUser(currentUser);
 
-  // 3. Listen for Children & Calculate Rank
-  useEffect(() => {
-    if (!user) return;
-    setChildrenLoading(true);
-    const q = query(
-      collection(firestore, "users"),
-      where("parentUid", "==", user.uid)
-    );
+      // Parallel Fetch
+      const [key, childrenList] = await Promise.all([
+        UserService.getLinkKey(currentUser.uid),
+        UserService.getChildren(currentUser.uid)
+      ]);
 
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const list: ChildData[] = [];
+      setLinkKey(key);
+      setChildren(childrenList);
 
-      // Process each child
-      for (const d of snapshot.docs) {
-        const data = d.data();
-        const myPoints = data.totalPoints || 0;
-
-        // Calculate Rank: Count how many children have MORE points than this child
-        let rank = "-";
-        try {
-          const usersRef = collection(firestore, 'users');
-          const betterPlayersQuery = query(
-            usersRef,
-            where("role", "==", "child"),
-            where("totalPoints", ">", myPoints)
-          );
-          const snapshotBetter = await getCountFromServer(betterPlayersQuery);
-          rank = (snapshotBetter.data().count + 1).toString(); // Rank = (People better than me) + 1
-        } catch (e) {
-          console.log("Rank calc error", e);
-        }
-
-        list.push({
-          id: d.id,
-          ...data,
-          rank: rank
-        });
-      }
-
-      setChildren(list);
+    } catch (e) {
+      console.error(e);
+    } finally {
       setChildrenLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
+      await AuthService.logout();
       router.replace("/login");
     } catch (error) {
       Alert.alert("Error", "Error signing out");
@@ -128,7 +80,6 @@ const ParentDashboardScreen = () => {
         {/* Header */}
         <View className="flex-row justify-between items-center mt-4 mb-8">
           <View>
-
             <Text className="text-primary text-3xl font-bold">Dashboard</Text>
           </View>
           <TouchableOpacity onPress={handleSignOut} className="bg-[#D9534F] p-2 rounded-full">
