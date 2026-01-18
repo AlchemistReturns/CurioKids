@@ -9,6 +9,8 @@ import Animated, {
     withSpring
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import TigerMascot from "./TigerMascot";
+import { audioManager } from "./AudioManager";
 
 const { width, height } = Dimensions.get("window");
 
@@ -116,9 +118,26 @@ export default function BalanceScaleGame({
             setInitialRightWeights(initialWeights);
         }
 
-        // Show hint after 10 seconds
+        // Speak instruction immediately when game loads
+        const instructionText = mode === "subtraction"
+            ? "Use balloons to lift weight away!"
+            : mode === "mystery"
+                ? "Fill the mystery boxes to balance!"
+                : mode === "fruit"
+                    ? "One pineapple equals two cherries"
+                    : "Drag weights to balance the scale!";
+
+        // Short delay to let UI render first
+        const instructionTimer = setTimeout(() => {
+            audioManager.speakQuestion(instructionText);
+        }, 500);
+
+        // Show hint after 10 seconds and speak it
         const hintTimer = setTimeout(() => {
             setShowHint(true);
+            if (hint) {
+                audioManager.speakQuestion(hint);
+            }
         }, 10000);
 
         // Timer countdown
@@ -134,8 +153,10 @@ export default function BalanceScaleGame({
         }, 1000);
 
         return () => {
+            clearTimeout(instructionTimer);
             clearTimeout(hintTimer);
             clearInterval(timerInterval);
+            audioManager.stopSpeaking();
             // Unload sounds
             if (tiltSound) tiltSound.unloadAsync();
             if (successSound) successSound.unloadAsync();
@@ -145,7 +166,7 @@ export default function BalanceScaleGame({
     useEffect(() => {
         // Calculate tilt angle based on balance
         const difference = leftTotal - rightTotal;
-        
+
         const playTiltSound = async () => {
             try {
                 const { sound } = await Audio.Sound.createAsync(
@@ -161,7 +182,7 @@ export default function BalanceScaleGame({
                 console.log("Error playing tilt sound:", error);
             }
         };
-        
+
         if (difference > 0) {
             // Left is heavier, tilt left (-20deg)
             if (lastTiltDirection.current !== "left") {
@@ -198,7 +219,7 @@ export default function BalanceScaleGame({
         // For subtraction mode, allow rightTotal to equal leftTotal (even if 0 or negative)
         const isBalanced = leftTotal === rightTotal;
         const hasPlacedWeights = placedWeights.length > 0;
-        
+
         if (isBalanced && hasPlacedWeights && !showSuccess) {
             soundTimerRef.current = setTimeout(async () => {
                 try {
@@ -218,7 +239,7 @@ export default function BalanceScaleGame({
                 setShowSuccess(true);
             }, 1200); // Delay to let scale visually balance before showing success
         }
-        
+
         // Cleanup timers on unmount or when dependencies change
         return () => {
             if (soundTimerRef.current) {
@@ -249,15 +270,9 @@ export default function BalanceScaleGame({
 
     const themeColors = getThemeColors();
 
-    // Render mascot icon
+    // Render mascot icon - now uses tiger
     const getMascotIcon = () => {
-        switch (mascot) {
-            case "elephant": return "🐘";
-            case "bird": return "🦅";
-            case "bat": return "🦇";
-            case "monkey": return "🐵";
-            default: return "⚖️";
-        }
+        return "🐯"; // Always use tiger now
     };
 
     // Render weight display
@@ -271,11 +286,11 @@ export default function BalanceScaleGame({
             // For cherries on the right
             return "🍒";
         }
-        
+
         if (mode === "subtraction" && value < 0) {
             return `🎈${Math.abs(value)}`;
         }
-        
+
         return value.toString();
     };
 
@@ -347,164 +362,172 @@ export default function BalanceScaleGame({
                     <Text style={styles.headerText}>Balance the Scale!</Text>
                 </View>
 
-            <View style={styles.gameArea}>
-                {/* Instructions */}
-                <View style={[styles.instructionBox, { backgroundColor: "white" }]}>
-                    <View style={styles.mascotRow}>
-                        <Text style={styles.mascotIcon}>{getMascotIcon()}</Text>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.instructionText}>
-                                {mode === "subtraction" 
-                                    ? "Use balloons to lift weight away!" 
-                                    : mode === "mystery"
-                                    ? "Fill the mystery boxes to balance!"
-                                    : mode === "fruit"
-                                    ? `1 🍍 = 2 🍒`
-                                    : "Drag weights to balance the scale!"}
-                            </Text>
-                            <View style={styles.balanceInfo}>
-                                <Text style={[styles.balanceText, { color: themeColors.primary }]}>
-                                    Left: {mode === "fruit" && leftDisplay ? renderWeightDisplay(leftTotal, true) : leftTotal}
+                <View style={styles.gameArea}>
+                    {/* Instructions */}
+                    <View style={[styles.instructionBox, { backgroundColor: "white" }]}>
+                        <View style={[styles.mascotRow, { alignItems: 'flex-start' }]}>
+                            <TigerMascot mood="thinking" size="small" />
+                            <View style={{ flex: 1, marginLeft: 8 }}>
+                                <Text style={styles.instructionText}>
+                                    {mode === "subtraction"
+                                        ? "Use balloons to lift weight away!"
+                                        : mode === "mystery"
+                                            ? "Fill the mystery boxes to balance!"
+                                            : mode === "fruit"
+                                                ? `1 🍍 = 2 🍒`
+                                                : "Drag weights to balance the scale!"}
                                 </Text>
-                                <Text style={[styles.balanceText, { color: themeColors.primary }]}>Right: {rightTotal}</Text>
+                                <View style={styles.balanceInfo}>
+                                    <Text style={[styles.balanceText, { color: themeColors.primary }]}>
+                                        Left: {mode === "fruit" && leftDisplay ? renderWeightDisplay(leftTotal, true) : leftTotal}
+                                    </Text>
+                                    <Text style={[styles.balanceText, { color: themeColors.primary }]}>Right: {rightTotal}</Text>
+                                </View>
                             </View>
                         </View>
+                        {showHint && hint && (
+                            <View style={styles.hintBox}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Text style={styles.hintText}>💡 {hint}</Text>
+                                    <TouchableOpacity
+                                        onPress={() => audioManager.speakQuestion(hint)}
+                                        style={{ marginLeft: 8, padding: 4 }}
+                                    >
+                                        <Ionicons name="volume-high" size={20} color="#FF9800" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
                     </View>
-                    {showHint && hint && (
-                        <View style={styles.hintBox}>
-                            <Text style={styles.hintText}>💡 {hint}</Text>
+
+                    {/* Scale */}
+                    <View style={styles.scaleContainer}>
+                        {/* Fulcrum (Triangle) */}
+                        <View style={styles.fulcrum} />
+
+                        {/* Beam */}
+                        <Animated.View style={[styles.beam, beamStyle, { backgroundColor: themeColors.secondary }]}>
+                            {/* Left Side */}
+                            <View style={[styles.scaleSide, styles.leftSide, { borderColor: themeColors.secondary }]}>
+                                <View style={styles.weightContainer}>
+                                    {mode === "fruit" && leftDisplay ? (
+                                        <View style={{ alignItems: "center", justifyContent: "center" }}>
+                                            {renderFruitDisplay(leftDisplay)}
+                                        </View>
+                                    ) : (
+                                        <View style={[styles.weight, { backgroundColor: "#757575", width: 50, height: 50, borderRadius: 25 }]}>
+                                            <Text style={[styles.weightText, { fontSize: 14 }]}>🪨{leftTotal}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            </View>
+
+                            {/* Right Side - Drop Zone */}
+                            <View style={[styles.scaleSide, styles.rightSide, { borderColor: themeColors.secondary }]}>
+                                <View style={[styles.weightContainer, { flexWrap: "wrap", gap: 6 }]}>
+                                    {/* Show initial weights (rocks) for subtraction mode */}
+                                    {mode === "subtraction" && initialRightWeights.map((weight) => (
+                                        <View
+                                            key={weight.id}
+                                            style={[styles.weight, { backgroundColor: "#757575", width: 45, height: 45 }]}
+                                        >
+                                            <Text style={styles.weightText}>🪨{weight.value}</Text>
+                                        </View>
+                                    ))}
+
+                                    {placedWeights.map((weight) => (
+                                        <DraggablePlacedWeight
+                                            key={weight.id}
+                                            weight={weight}
+                                            mode={mode}
+                                            themeColor={themeColors.primary}
+                                            onDrop={handleWeightDrop}
+                                        />
+                                    ))}
+                                    {mode === "mystery" && mysterySlots > placedWeights.length && (
+                                        [...Array(mysterySlots - placedWeights.length)].map((_, i) => (
+                                            <View key={`mystery-${i}`} style={styles.mysteryBox}>
+                                                <Text style={styles.mysteryText}>?</Text>
+                                            </View>
+                                        ))
+                                    )}
+                                </View>
+                            </View>
+                        </Animated.View>
+                    </View>
+
+                    {/* Inventory */}
+                    <View style={[styles.inventory, { backgroundColor: "white" }]}>
+                        <Text style={styles.inventoryTitle}>
+                            {mode === "subtraction" ? "Balloons 🎈" : mode === "fruit" ? "Cherries 🍒" : "Available Weights"}
+                        </Text>
+                        <View style={styles.inventoryWeights}>
+                            {inventoryWeights.map((weight) => (
+                                <DraggableWeight
+                                    key={weight.id}
+                                    weight={weight}
+                                    mode={mode}
+                                    themeColor={themeColors.primary}
+                                    onDrop={handleWeightDrop}
+                                />
+                            ))}
+                        </View>
+                    </View>
+
+                    {/* Timer Display */}
+                    <View style={styles.timerContainer}>
+                        <Ionicons name="timer-outline" size={20} color={timeLeft < 30 ? "#FF5252" : "#666"} />
+                        <Text style={[styles.timerText, { color: timeLeft < 30 ? "#FF5252" : "#666" }]}>
+                            {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}
+                        </Text>
+                    </View>
+
+                    {/* Success Overlay */}
+                    {showSuccess && (
+                        <View style={styles.successOverlay}>
+                            <Ionicons name="trophy" size={80} color="#FFD700" />
+                            <Text style={styles.successText}>Perfect Balance!</Text>
+                            <Text style={styles.successSubtext}>🎉 Great Job! 🎉</Text>
+                            <TouchableOpacity
+                                style={styles.tryAgainButton}
+                                onPress={() => {
+                                    const score = 50;
+                                    const stars = 3;
+                                    onComplete(score, stars);
+                                }}
+                            >
+                                <Text style={styles.tryAgainText}>Continue →</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {/* Time Up Overlay */}
+                    {showTimeUp && (
+                        <View style={styles.successOverlay}>
+                            <Ionicons name="hourglass-outline" size={80} color="#FF9800" />
+                            <Text style={styles.successText}>Time's Up!</Text>
+                            <Text style={styles.successSubtext}>Let's try again! 💪</Text>
+                            <TouchableOpacity
+                                style={styles.tryAgainButton}
+                                onPress={() => {
+                                    setShowTimeUp(false);
+                                    setTimeLeft(120);
+                                    setRightTotal(initialRightTotal);
+                                    setPlacedWeights([]);
+                                    const weights: Weight[] = availableWeights.map((value, index) => ({
+                                        id: `weight-${index}`,
+                                        value,
+                                        x: 0,
+                                        y: 0,
+                                    }));
+                                    setInventoryWeights(weights);
+                                }}
+                            >
+                                <Text style={styles.tryAgainText}>Try Again</Text>
+                            </TouchableOpacity>
                         </View>
                     )}
                 </View>
-
-                {/* Scale */}
-                <View style={styles.scaleContainer}>
-                    {/* Fulcrum (Triangle) */}
-                    <View style={styles.fulcrum} />
-
-                    {/* Beam */}
-                    <Animated.View style={[styles.beam, beamStyle, { backgroundColor: themeColors.secondary }]}>
-                        {/* Left Side */}
-                        <View style={[styles.scaleSide, styles.leftSide, { borderColor: themeColors.secondary }]}>
-                            <View style={styles.weightContainer}>
-                                {mode === "fruit" && leftDisplay ? (
-                                    <View style={{ alignItems: "center", justifyContent: "center" }}>
-                                        {renderFruitDisplay(leftDisplay)}
-                                    </View>
-                                ) : (
-                                    <View style={[styles.weight, { backgroundColor: "#757575", width: 50, height: 50, borderRadius: 25 }]}>
-                                        <Text style={[styles.weightText, { fontSize: 14 }]}>🪨{leftTotal}</Text>
-                                    </View>
-                                )}
-                            </View>
-                        </View>
-
-                        {/* Right Side - Drop Zone */}
-                        <View style={[styles.scaleSide, styles.rightSide, { borderColor: themeColors.secondary }]}>
-                            <View style={[styles.weightContainer, { flexWrap: "wrap", gap: 6 }]}>
-                                {/* Show initial weights (rocks) for subtraction mode */}
-                                {mode === "subtraction" && initialRightWeights.map((weight) => (
-                                    <View
-                                        key={weight.id}
-                                        style={[styles.weight, { backgroundColor: "#757575", width: 45, height: 45 }]}
-                                    >
-                                        <Text style={styles.weightText}>🪨{weight.value}</Text>
-                                    </View>
-                                ))}
-                                
-                                {placedWeights.map((weight) => (
-                                    <DraggablePlacedWeight
-                                        key={weight.id}
-                                        weight={weight}
-                                        mode={mode}
-                                        themeColor={themeColors.primary}
-                                        onDrop={handleWeightDrop}
-                                    />
-                                ))}
-                                {mode === "mystery" && mysterySlots > placedWeights.length && (
-                                    [...Array(mysterySlots - placedWeights.length)].map((_, i) => (
-                                        <View key={`mystery-${i}`} style={styles.mysteryBox}>
-                                            <Text style={styles.mysteryText}>?</Text>
-                                        </View>
-                                    ))
-                                )}
-                            </View>
-                        </View>
-                    </Animated.View>
-                </View>
-
-                {/* Inventory */}
-                <View style={[styles.inventory, { backgroundColor: "white" }]}>
-                    <Text style={styles.inventoryTitle}>
-                        {mode === "subtraction" ? "Balloons 🎈" : mode === "fruit" ? "Cherries 🍒" : "Available Weights"}
-                    </Text>
-                    <View style={styles.inventoryWeights}>
-                        {inventoryWeights.map((weight) => (
-                            <DraggableWeight
-                                key={weight.id}
-                                weight={weight}
-                                mode={mode}
-                                themeColor={themeColors.primary}
-                                onDrop={handleWeightDrop}
-                            />
-                        ))}
-                    </View>
-                </View>
-
-                {/* Timer Display */}
-                <View style={styles.timerContainer}>
-                    <Ionicons name="timer-outline" size={20} color={timeLeft < 30 ? "#FF5252" : "#666"} />
-                    <Text style={[styles.timerText, { color: timeLeft < 30 ? "#FF5252" : "#666" }]}>
-                        {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}
-                    </Text>
-                </View>
-
-                {/* Success Overlay */}
-                {showSuccess && (
-                    <View style={styles.successOverlay}>
-                        <Ionicons name="trophy" size={80} color="#FFD700" />
-                        <Text style={styles.successText}>Perfect Balance!</Text>
-                        <Text style={styles.successSubtext}>🎉 Great Job! 🎉</Text>
-                        <TouchableOpacity 
-                            style={styles.tryAgainButton}
-                            onPress={() => {
-                                const score = 50;
-                                const stars = 3;
-                                onComplete(score, stars);
-                            }}
-                        >
-                            <Text style={styles.tryAgainText}>Continue →</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                {/* Time Up Overlay */}
-                {showTimeUp && (
-                    <View style={styles.successOverlay}>
-                        <Ionicons name="hourglass-outline" size={80} color="#FF9800" />
-                        <Text style={styles.successText}>Time's Up!</Text>
-                        <Text style={styles.successSubtext}>Let's try again! 💪</Text>
-                        <TouchableOpacity 
-                            style={styles.tryAgainButton}
-                            onPress={() => {
-                                setShowTimeUp(false);
-                                setTimeLeft(120);
-                                setRightTotal(initialRightTotal);
-                                setPlacedWeights([]);
-                                const weights: Weight[] = availableWeights.map((value, index) => ({
-                                    id: `weight-${index}`,
-                                    value,
-                                    x: 0,
-                                    y: 0,
-                                }));
-                                setInventoryWeights(weights);
-                            }}
-                        >
-                            <Text style={styles.tryAgainText}>Try Again</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-            </View>
             </GestureHandlerRootView>
         </SafeAreaView>
     );

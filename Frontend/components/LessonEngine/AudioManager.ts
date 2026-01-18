@@ -1,9 +1,17 @@
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
+import * as Speech from 'expo-speech';
+
+// --- TTS CONFIGURATION FOR CHILD-FRIENDLY VOICE ---
+const TTS_CONFIG = {
+  rate: 0.85,      // Slower for children to understand
+  pitch: 1.1,      // Slightly higher pitch (friendlier)
+  language: 'en-US',
+};
 
 // --- 1. SEPARATE ASSETS ---
 // Keep these in memory (Fast response needed)
 const SFX_FILES: Record<string, any> = {
-  pop: require('@/assets/sounds/pop.mp3'), 
+  pop: require('@/assets/sounds/pop.mp3'),
   boing: require('@/assets/sounds/boing.mp3'),
   correct: require('@/assets/sounds/correct_ding.mp3'),
   sparkle: require('@/assets/sounds/cheer.mp3'),
@@ -56,6 +64,7 @@ class AudioManager {
   // Only store SFX players permanently
   sfxSounds: Record<string, Audio.Sound> = {};
   isLoaded = false;
+  isSpeaking = false;
 
   async loadSounds() {
     if (this.isLoaded) return;
@@ -73,10 +82,10 @@ class AudioManager {
       // ONLY LOAD SFX (Safe amount for Android/iOS limits)
       const promises = Object.entries(SFX_FILES).map(async ([key, file]) => {
         try {
-            const { sound } = await Audio.Sound.createAsync(file);
-            this.sfxSounds[key] = sound;
+          const { sound } = await Audio.Sound.createAsync(file);
+          this.sfxSounds[key] = sound;
         } catch (e) {
-            console.warn(`Failed to load SFX: ${key}`);
+          console.warn(`Failed to load SFX: ${key}`);
         }
       });
 
@@ -89,6 +98,53 @@ class AudioManager {
     }
   }
 
+  /**
+   * Speak a question or text aloud using child-friendly TTS
+   * @param text - The text to speak
+   * @param onDone - Optional callback when speech completes
+   */
+  async speakQuestion(text: string, onDone?: () => void) {
+    if (!text || this.isSpeaking) return;
+
+    try {
+      // Stop any ongoing speech first
+      await Speech.stop();
+      this.isSpeaking = true;
+
+      await Speech.speak(text, {
+        rate: TTS_CONFIG.rate,
+        pitch: TTS_CONFIG.pitch,
+        language: TTS_CONFIG.language,
+        onDone: () => {
+          this.isSpeaking = false;
+          onDone?.();
+        },
+        onError: () => {
+          this.isSpeaking = false;
+          console.warn('TTS Error');
+        },
+        onStopped: () => {
+          this.isSpeaking = false;
+        }
+      });
+    } catch (e) {
+      this.isSpeaking = false;
+      console.warn('TTS speak error:', e);
+    }
+  }
+
+  /**
+   * Stop any ongoing speech
+   */
+  async stopSpeaking() {
+    try {
+      await Speech.stop();
+      this.isSpeaking = false;
+    } catch (e) {
+      console.warn('TTS stop error:', e);
+    }
+  }
+
   async play(name: string) {
     // 1. STRATEGY: PRELOADED SFX
     if (this.sfxSounds[name]) {
@@ -97,11 +153,11 @@ class AudioManager {
       } catch (e) {
         // If the player crashed/unloaded, reload it
         try {
-            await this.sfxSounds[name].unloadAsync();
-            await this.sfxSounds[name].loadAsync(SFX_FILES[name]);
-            await this.sfxSounds[name].playAsync();
+          await this.sfxSounds[name].unloadAsync();
+          await this.sfxSounds[name].loadAsync(SFX_FILES[name]);
+          await this.sfxSounds[name].playAsync();
         } catch (reloadError) {
-            console.log("SFX Recovery failed", reloadError);
+          console.log("SFX Recovery failed", reloadError);
         }
       }
       return;
@@ -110,25 +166,28 @@ class AudioManager {
     // 2. STRATEGY: LAZY LOAD VOICE (Load -> Play -> Destroy)
     const voiceFile = VOICE_FILES[name];
     if (voiceFile) {
-        try {
-            // Create a disposable sound object
-            const { sound } = await Audio.Sound.createAsync(voiceFile, { shouldPlay: true });
-            
-            // Auto-cleanup when done to free memory
-            sound.setOnPlaybackStatusUpdate(async (status) => {
-                if (status.isLoaded && status.didJustFinish) {
-                    await sound.unloadAsync();
-                }
-            });
-        } catch (e) {
-            console.log(`Error streaming voice: ${name}`, e);
-        }
+      try {
+        // Create a disposable sound object
+        const { sound } = await Audio.Sound.createAsync(voiceFile, { shouldPlay: true });
+
+        // Auto-cleanup when done to free memory
+        sound.setOnPlaybackStatusUpdate(async (status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            await sound.unloadAsync();
+          }
+        });
+      } catch (e) {
+        console.log(`Error streaming voice: ${name}`, e);
+      }
     } else {
-        console.log(`Sound [${name}] not found in map.`);
+      console.log(`Sound [${name}] not found in map.`);
     }
   }
 
   async unloadSounds() {
+    // Stop TTS
+    await this.stopSpeaking();
+
     // Unload SFX
     for (const sound of Object.values(this.sfxSounds)) {
       try {
