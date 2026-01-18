@@ -1,10 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { firestore } from "../../../config/firebase";
+import { UserService } from "../../../services/UserService";
 
 export default function ChildDetailScreen() {
     const { id } = useLocalSearchParams();
@@ -17,15 +16,15 @@ export default function ChildDetailScreen() {
             if (!id) return;
             try {
                 // Fetch User Details
-                const userDoc = await getDoc(doc(firestore, "users", id as string));
-                if (userDoc.exists()) {
-                    setChild(userDoc.data());
+                const childData = await UserService.getProfile(id as string);
+                if (childData) {
+                    setChild(childData);
                 }
 
                 // Fetch Progress Details
-                const progressDoc = await getDoc(doc(firestore, "child_progress", id as string));
-                if (progressDoc.exists()) {
-                    setProgress(progressDoc.data());
+                const progressData = await UserService.getProgress(id as string);
+                if (progressData) {
+                    setProgress(progressData);
                 }
             } catch (error) {
                 console.error("Error fetching child details:", error);
