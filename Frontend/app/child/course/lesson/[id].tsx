@@ -25,6 +25,7 @@ import { audioManager } from "@/components/LessonEngine/AudioManager";
 import BalanceScaleGame from "@/components/LessonEngine/BalanceScaleGame";
 import BubblePopGame from "@/components/LessonEngine/BubblePopGame";
 import TracingGame, { GameResult } from "@/components/LessonEngine/TracingGame";
+import TigerMascot, { TigerSpeechBubble } from "@/components/LessonEngine/TigerMascot";
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -33,51 +34,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const { width } = Dimensions.get("window");
 
-// --- 🤖 LUMO THE ROBOT COMPONENT ---
-const LumoAvatar = ({ mood }: { mood: 'happy' | 'thinking' | 'sad' | 'success' }) => {
-    const bounce = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        if (mood === 'success') {
-            Animated.loop(
-                Animated.sequence([
-                    Animated.timing(bounce, { toValue: -20, duration: 300, useNativeDriver: true }),
-                    Animated.timing(bounce, { toValue: 0, duration: 300, useNativeDriver: true })
-                ]),
-                { iterations: 2 }
-            ).start();
-        } else if (mood === 'thinking') {
-            Animated.loop(
-                Animated.sequence([
-                    Animated.timing(bounce, { toValue: -5, duration: 1000, useNativeDriver: true }),
-                    Animated.timing(bounce, { toValue: 0, duration: 1000, useNativeDriver: true })
-                ])
-            ).start();
-        } else {
-            bounce.setValue(0);
-        }
-    }, [mood]);
-
-    const getIcon = () => {
-        switch (mood) {
-            case 'success': return "happy";
-            case 'sad': return "sad";
-            case 'thinking': return "bulb";
-            default: return "happy-outline";
-        }
-    };
-
-    return (
-        <Animated.View style={{ transform: [{ translateY: bounce }] }} className="items-center justify-center z-50">
-            <View className={`w-24 h-24 rounded-full justify-center items-center shadow-lg border-4 ${mood === 'success' ? 'bg-yellow-300 border-yellow-500' : 'bg-white border-purple-500'}`}>
-                <Ionicons name={getIcon()} size={50} color="#673AB7" />
-            </View>
-            <View className="bg-purple-600 px-3 py-1 rounded-full -mt-3 border-2 border-white">
-                <Text className="text-white font-bold text-xs">LUMO</Text>
-            </View>
-        </Animated.View>
-    );
-};
+// Tiger mood type for the mascot
+type TigerMood = 'happy' | 'thinking' | 'sad' | 'success';
 
 export default function LessonScreen() {
     const { courseId, moduleId, id, title } = useLocalSearchParams();
@@ -101,10 +59,36 @@ export default function LessonScreen() {
     // --- ANIMATION VALUES ---
     const shakeAnim = useRef(new Animated.Value(0)).current;
 
+    // Speak the question when lesson loads (for logic games)
+    const speakCurrentQuestion = () => {
+        if (lesson?.question) {
+            audioManager.speakQuestion(lesson.question);
+        }
+    };
+
     useEffect(() => {
         audioManager.loadSounds(); // Ensure SFX are loaded
         fetchLesson();
+
+        // Cleanup TTS on unmount
+        return () => {
+            audioManager.stopSpeaking();
+        };
     }, [id]);
+
+    // Auto-speak question when a logic game lesson loads
+    useEffect(() => {
+        if (lesson && !loading) {
+            const isLogicGame = ['logic_pattern', 'logic_sorting', 'logic_sequencing', 'logic_drag'].includes(lesson.type);
+            if (isLogicGame && lesson.question) {
+                // Short delay to let the UI render first
+                const timer = setTimeout(() => {
+                    audioManager.speakQuestion(lesson.question);
+                }, 500);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [lesson, loading]);
 
     const fetchLesson = async () => {
         setLoading(true);
@@ -505,43 +489,79 @@ export default function LessonScreen() {
 
     if (isLogicGame) {
         return (
-            <SafeAreaView className="flex-1 bg-[#673AB7]" edges={['top', 'bottom']}>
-                {/* Header */}
-                <View className="flex-row justify-between items-center px-4 py-2">
-                    <TouchableOpacity onPress={() => router.back()} className="bg-white/20 p-2 rounded-full">
-                        <Ionicons name="arrow-back" size={24} color="white" />
-                    </TouchableOpacity>
-                    <View className="bg-white/20 px-4 py-1 rounded-full">
-                        <Text className="text-white font-bold">Level {lesson.order}</Text>
-                    </View>
-                    <View className="w-10" />
+            <SafeAreaView className="flex-1 bg-[#FFF8E1]" edges={['top', 'bottom']}>
+                {/* Peeping Tiger at Top */}
+                <View className="absolute top-12 left-1/2 -ml-10 z-20">
+                    <TigerMascot mood="peeping" size="small" />
                 </View>
 
-                {/* Question */}
-                <View className="px-6 py-4 min-h-[100px] justify-center items-center">
-                    <Text className="text-white text-2xl font-bold text-center leading-8 shadow-black shadow-sm">
-                        {lesson.question}
+                {/* Header with Warm Design */}
+                <View
+                    className="pt-14 pb-4 px-4"
+                    style={{ backgroundColor: '#FFB74D' }}
+                >
+                    <View className="flex-row justify-between items-center">
+                        <TouchableOpacity
+                            onPress={() => router.back()}
+                            className="bg-white/30 p-2.5 rounded-full"
+                        >
+                            <Ionicons name="arrow-back" size={24} color="#5D4037" />
+                        </TouchableOpacity>
+                        <View className="bg-white/40 px-4 py-1.5 rounded-full">
+                            <Text className="text-[#5D4037] font-bold">Level {lesson.order}</Text>
+                        </View>
+                        {/* Repeat Question Button */}
+                        <TouchableOpacity
+                            onPress={speakCurrentQuestion}
+                            className="bg-white/30 p-2.5 rounded-full"
+                        >
+                            <Ionicons name="volume-high" size={24} color="#5D4037" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Title */}
+                    <Text
+                        className="text-2xl font-bold text-center mt-3"
+                        style={{ color: '#3E2723' }}
+                    >
+                        {lesson.title}
                     </Text>
                 </View>
 
+                {/* Wavy Separator */}
+                <View
+                    className="h-4 w-full"
+                    style={{
+                        backgroundColor: '#FFB74D',
+                        borderBottomLeftRadius: 50,
+                        borderBottomRightRadius: 50,
+                    }}
+                />
+
                 {/* Main Game Area */}
-                <View className="flex-1 w-full relative">
-                    <View className="absolute top-0 right-4 z-10">
-                        <LumoAvatar mood={lumoMood} />
+                <View className="flex-1 w-full relative px-4 pt-4">
+                    {/* Tiger Mascot with Speech Bubble */}
+                    <View className="absolute top-2 right-2 z-10 flex-row items-start">
+                        <TigerSpeechBubble text={lesson.question} position="left" />
+                        <TigerMascot mood={lumoMood as TigerMood} size="small" />
                     </View>
 
-                    {(lesson.type === 'logic_pattern' || lesson.type === 'logic_drag') && renderPatternGame()}
-                    {lesson.type === 'logic_sorting' && renderSortingGame()}
-                    {lesson.type === 'logic_sequencing' && renderSequencingGame()}
+                    {/* Game Content */}
+                    <View className="flex-1 mt-32">
+                        {(lesson.type === 'logic_pattern' || lesson.type === 'logic_drag') && renderPatternGame()}
+                        {lesson.type === 'logic_sorting' && renderSortingGame()}
+                        {lesson.type === 'logic_sequencing' && renderSequencingGame()}
+                    </View>
                 </View>
 
                 {/* Footer */}
-                <View className="p-6">
+                <View className="p-4">
                     {isCorrect ? (
                         <TouchableOpacity
                             onPress={handleComplete}
                             disabled={completing}
-                            className="bg-green-400 w-full py-4 rounded-2xl border-b-4 border-green-600 shadow-xl flex-row justify-center items-center"
+                            className="w-full py-4 rounded-2xl shadow-xl flex-row justify-center items-center"
+                            style={{ backgroundColor: '#4CAF50' }}
                         >
                             {completing ? <ActivityIndicator color="white" /> : (
                                 <>
@@ -552,7 +572,7 @@ export default function LessonScreen() {
                         </TouchableOpacity>
                     ) : (
                         <View className="h-14 justify-center items-center">
-                            <Text className="text-white/60 text-sm">Solve the puzzle to help Lumo!</Text>
+                            <Text className="text-[#8D6E63] text-sm">Tap an answer to help Lumo!</Text>
                         </View>
                     )}
                 </View>
@@ -589,7 +609,7 @@ export default function LessonScreen() {
                 </View>
 
                 <View className={`flex-1 items-center justify-center p-8 ${getModuleBackgroundColor()}`}>
-                    {isLogicLandCourse && <LumoAvatar mood={lesson.type === 'story_outro' ? 'success' : 'happy'} />}
+                    {isLogicLandCourse && <TigerMascot mood={lesson.type === 'story_outro' ? 'success' : 'happy'} size="medium" />}
                     <View className={`bg-white p-6 rounded-2xl shadow-sm ${isLogicLandCourse ? 'mt-8 border border-purple-100' : isBalanceBuddiesCourse ? 'border border-red-100' : 'border border-gray-100'}`}>
                         <Text className="text-2xl text-center text-gray-800 leading-9">{lesson.content}</Text>
                     </View>
