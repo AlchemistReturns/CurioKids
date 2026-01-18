@@ -2,7 +2,7 @@ import { CONFIG } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const AuthService = {
-    async login(email, password) {
+    async login(email: string, password: string) {
         try {
             const response = await fetch(`${CONFIG.BACKEND_URL}/auth/login`, {
                 method: 'POST',
@@ -22,7 +22,7 @@ export const AuthService = {
         }
     },
 
-    async register(email, password, name, age, role = 'child', parentKey = '') {
+    async register(email: string, password: string, name: string, age: number, role: string = 'child', parentKey: string = '') {
         try {
             const response = await fetch(`${CONFIG.BACKEND_URL}/auth/register`, {
                 method: 'POST',
@@ -61,6 +61,33 @@ export const AuthService = {
     async logout() {
         await AsyncStorage.removeItem('user');
         await AsyncStorage.removeItem('token');
+    },
+
+    async logoutChild(childUid: string) {
+        try {
+            const response = await fetch(`${CONFIG.BACKEND_URL}/auth/logout-child`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ childUid })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to logout child');
+            return data;
+        } catch (error) {
+            console.error("Child Logout Error:", error);
+            throw error;
+        }
+    },
+
+    async checkChildStatus(uid: string) {
+        try {
+            const response = await fetch(`${CONFIG.BACKEND_URL}/auth/status?uid=${uid}`);
+            const data = await response.json();
+            return data.forceLogout;
+        } catch (error) {
+            console.error("Status Check Error:", error);
+            return false;
+        }
     },
 
     async getCurrentUser() {

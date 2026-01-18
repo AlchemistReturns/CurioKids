@@ -21,8 +21,14 @@ exports.login = async (req, res) => {
 
         // Get user details to return role/name
         const uid = response.data.localId;
-        const userDoc = await firestore.collection('users').doc(uid).get();
+        const userDocRef = firestore.collection('users').doc(uid);
+        const userDoc = await userDocRef.get();
         const userData = userDoc.exists ? userDoc.data() : {};
+
+        // RESET forceLogout flag on successful login
+        if (userData.role === 'child') {
+            await userDocRef.update({ forceLogout: false });
+        }
 
         res.json({
             user: {
@@ -84,7 +90,8 @@ exports.register = async (req, res) => {
             email,
             name,
             role: role || 'child',
-            createdAt: new Date()
+            createdAt: new Date(),
+            forceLogout: false // Initialize flag
         };
 
         if (role === 'child') {
@@ -156,4 +163,37 @@ exports.changePassword = async (req, res) => {
 
 exports.logout = async (req, res) => {
     res.json({ message: "Logged out" });
+};
+
+// Parent forcing child logout
+exports.logoutChild = async (req, res) => {
+    const { childUid } = req.body;
+    // START_NOTE:Ideally get parentUid from auth middleware to verify ownership
+    // For now assuming the logged-in user (parent) is valid
+    try {
+        await firestore.collection('users').doc(childUid).update({
+            forceLogout: true
+        });
+        res.json({ message: `Child ${childUid} force logout set.` });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Child checking their own status
+exports.checkStatus = async (req, res) => {
+    const { uid } = req.query; // Passed from frontend or middleware
+    if (!uid) return res.status(400).json({ error: "UID required" });
+
+    try {
+        const userDoc = await firestore.collection('users').doc(uid).get();
+        if (!userDoc.exists) return res.status(404).json({ error: "User not found" });
+
+        const data = userDoc.data();
+        res.json({
+            forceLogout: !!data.forceLogout
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 };

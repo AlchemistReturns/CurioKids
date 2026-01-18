@@ -25,14 +25,7 @@ export default function ChildProfile({ user }: { user: User }) {
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      await AuthService.logout();
-      router.replace("/login");
-    } catch (error) {
-      Alert.alert("Error", "Could not sign out");
-    }
-  };
+
 
   // Helper to capitalize subject names
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -102,17 +95,6 @@ export default function ChildProfile({ user }: { user: User }) {
             <Ionicons name="chevron-forward" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
-
-        {/* Logout */}
-        <TouchableOpacity
-          onPress={handleSignOut}
-          className="bg-[#D9534F] py-4 rounded-2xl shadow-lg active:scale-95 transform transition mb-10 flex-row justify-center items-center"
-        >
-          <Ionicons name="log-out-outline" size={24} color="white" style={{ marginRight: 8 }} />
-          <Text className="text-white font-bold text-xl uppercase tracking-widest">
-            Log Out
-          </Text>
-        </TouchableOpacity>
 
       </ScrollView>
     </SafeAreaView>

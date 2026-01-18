@@ -16,8 +16,25 @@ export default function ChildDashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
+      checkSession();
     }, [])
   );
+
+  const checkSession = async () => {
+    try {
+      const currentUser = await AuthService.getCurrentUser();
+      if (currentUser) {
+        const forceLogout = await AuthService.checkChildStatus(currentUser.uid);
+        if (forceLogout) {
+          await AuthService.logout();
+          router.replace("/login");
+          Alert.alert("Session Ended", "Your parent has logged you out.");
+        }
+      }
+    } catch (e) {
+      console.error("Session check failed", e);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -43,15 +60,6 @@ export default function ChildDashboardScreen() {
       console.error(e);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await AuthService.logout();
-      router.replace("/login");
-    } catch (error) {
-      Alert.alert("Error", "Error signing out");
     }
   };
 
@@ -85,10 +93,7 @@ export default function ChildDashboardScreen() {
               <Text className="text-primary font-bold text-2xl">Welcome back!</Text>
             </View>
           </View>
-
-          <TouchableOpacity onPress={handleSignOut} className="bg-[#D9534F] p-2 rounded-full">
-            <Ionicons name="log-out-outline" size={24} color="#fff" />
-          </TouchableOpacity>
+          {/* Logout button removed as per requirements */}
         </View>
 
         {/* BIG Play Button */}

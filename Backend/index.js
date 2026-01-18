@@ -3,27 +3,37 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 require('dotenv').config();
 
+// Route Imports
 const progressRoutes = require('./routes/progressRoutes');
 const authRoutes = require('./routes/authRoutes');
 const courseRoutes = require('./routes/courseRoutes');
 const userRoutes = require('./routes/userRoutes');
 
 const app = express();
+// Ensure PORT is defined (defaulting to 3000)
 const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
-// Routes
+// API Routes
+// These require the '/api' prefix in your frontend CONFIG.BACKEND_URL
 app.use('/api/progress', progressRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
 
+// Health check route to test connection from phone browser
 app.get('/', (req, res) => {
-    res.send('CurioKids Backend is running');
+    res.send('CurioKids Backend is running and reachable!');
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+// IMPORTANT: Listen on '0.0.0.0' to allow connections from your physical phone
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`-----------------------------------------------`);
+    console.log(`Server is running!`);
+    console.log(`Local Access: http://localhost:${PORT}`);
+    console.log(`Phone Access: http://192.168.1.106:${PORT}`);
+    console.log(`-----------------------------------------------`);
 });
