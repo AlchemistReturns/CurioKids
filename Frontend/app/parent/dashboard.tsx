@@ -132,7 +132,37 @@ const ParentDashboardScreen = () => {
                     <Text className="text-white font-bold text-xl">{(child.name ?? "Unnamed Child").toUpperCase()}</Text>
                     <Text className="text-secondary text-sm">{child.email}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={24} color="#FFF" />
+
+                  {/* Child Logout Button */}
+                  <TouchableOpacity
+                    className="bg-red-500 p-2 rounded-lg ml-2"
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      Alert.alert(
+                        "Logout Child?",
+                        `Are you sure you want to log out ${child.name}?`,
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Logout",
+                            style: "destructive",
+                            onPress: async () => {
+                              try {
+                                await AuthService.logoutChild(child.id);
+                                Alert.alert("Success", "Child logged out successfully.");
+                              } catch (err) {
+                                Alert.alert("Error", "Failed to logout child.");
+                              }
+                            }
+                          }
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="power" size={20} color="#FFF" />
+                  </TouchableOpacity>
+
+                  <Ionicons name="chevron-forward" size={24} color="#FFF" className="ml-2" />
                 </View>
 
                 {/* Child Stats Grid */}
