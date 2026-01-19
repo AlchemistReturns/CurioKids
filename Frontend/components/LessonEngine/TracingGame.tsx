@@ -106,16 +106,24 @@ export default function TracingGame({ data, onComplete, onExit }: TracingGamePro
     if (!startPoint || !nextPoint) return null;
     const angle = Math.atan2(nextPoint.y - startPoint.y, nextPoint.x - startPoint.x);
 
-    // Create a simple arrow shape pointing right, then rotate
+    // Offset from the center of the start point (radius ~22 + padding)
+    const DISTANCE_FROM_DOT = 60;
+
+    // Position "outside" the start dot along the path
+    const dx = Math.cos(angle) * DISTANCE_FROM_DOT;
+    const dy = Math.sin(angle) * DISTANCE_FROM_DOT;
+
+    // Create a simple arrow shape pointing right
     const path = Skia.Path.Make();
-    path.moveTo(0, -10);
+    path.moveTo(-5, -10);
     path.lineTo(15, 0);
-    path.lineTo(0, 10);
+    path.lineTo(-5, 10);
+    path.lineTo(0, 0); // Indented back
     path.close();
 
     // Transform matrix
     const matrix = Skia.Matrix();
-    matrix.translate(startPoint.x, startPoint.y);
+    matrix.translate(startPoint.x + dx, startPoint.y + dy);
     matrix.rotate(angle * (180 / Math.PI)); // Skia uses degrees
     path.transform(matrix);
 
@@ -362,7 +370,7 @@ export default function TracingGame({ data, onComplete, onExit }: TracingGamePro
 
                   {/* Arrow Guide */}
                   {arrowPath && startPoint && (
-                    <Path path={arrowPath} color="white" style="fill" />
+                    <Path path={arrowPath} color={THEME.outline} style="fill" />
                   )}
 
                   {/* End Dot */}
