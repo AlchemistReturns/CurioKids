@@ -2,11 +2,16 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
     ActivityIndicator,
+    Image,
     Text,
     TextInput,
     TouchableOpacity,
     View,
+    ScrollView,
+    KeyboardAvoidingView,
+    Platform
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthService } from "../../services/AuthService";
 
 const RegistrationScreen = () => {
@@ -37,77 +42,97 @@ const RegistrationScreen = () => {
     };
 
     return (
-        <View className="flex-1 justify-center px-6">
-            <View className="bg-white px-6 py-12 rounded-xl">
-                <Text className="text-3xl font-bold mb-8 text-center text-primary">
-                    Create Account
-                </Text>
+        <View className="flex-1 bg-tigerYellow">
+            <SafeAreaView className="flex-1">
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    className="flex-1"
+                >
+                    <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+                        <View className="px-6 pb-8">
+                            {/* Tiger Image */}
+                            <View className="items-center mb-6">
+                                <Image
+                                    source={require('../../assets/tiger.png')}
+                                    className="w-40 h-40"
+                                    resizeMode="contain"
+                                />
+                            </View>
 
-                <TextInput
-                    className="h-12 border border-primary rounded-lg px-4 mb-4"
-                    placeholder="Name"
-                    placeholderTextColor="#aaa"
-                    value={name}
-                    onChangeText={setName}
-                    autoCapitalize="none"
-                />
+                            <View className="bg-white/20 p-6 rounded-3xl">
+                                <Text className="text-3xl font-bold mb-6 text-center text-white shadow-sm">
+                                    Parent Signup
+                                </Text>
 
-                <TextInput
-                    className="h-12 border border-primary rounded-lg px-4 mb-4"
-                    placeholder="Email"
-                    placeholderTextColor="#aaa"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                />
+                                <TextInput
+                                    className="h-14 bg-white rounded-full px-6 mb-4 text-primary text-base"
+                                    placeholder="Full Name"
+                                    placeholderTextColor="#aaa"
+                                    value={name}
+                                    onChangeText={setName}
+                                    autoCapitalize="words"
+                                />
 
-                <TextInput
-                    className="h-12 border border-primary rounded-lg px-4 mb-4"
-                    placeholder="Password (min 6 characters)"
-                    placeholderTextColor="#aaa"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                />
+                                <TextInput
+                                    className="h-14 bg-white rounded-full px-6 mb-4 text-primary text-base"
+                                    placeholder="Email Address"
+                                    placeholderTextColor="#aaa"
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                />
 
-                {error ? (
-                    <Text className="text-primary mb-4 text-center">
-                        {error}
-                    </Text>
-                ) : null}
+                                <TextInput
+                                    className="h-14 bg-white rounded-full px-6 mb-6 text-primary text-base"
+                                    placeholder="Password (min 6 chars)"
+                                    placeholderTextColor="#aaa"
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry
+                                />
 
-                {loading ? (
-                    <ActivityIndicator
-                        size="large"
-                        color="#3f51b5"
-                        className="my-2"
-                    />
-                ) : (
-                    <View className="rounded-lg overflow-hidden mb-4">
-                        <TouchableOpacity
-                            className="bg-secondary py-4 px-8 rounded-xl w-full"
-                            onPress={handleSignUp}
-                        >
-                            <Text className="text-primary text-xl font-bold text-center">
-                                Sign Up
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
+                                {error ? (
+                                    <View className="bg-red-100 p-3 rounded-xl mb-4">
+                                        <Text className="text-red-500 text-center font-semibold">
+                                            {error}
+                                        </Text>
+                                    </View>
+                                ) : null}
 
-                <View className="flex-row justify-center mt-5">
-                    <Text className="text-primary">
-                        Already have an account?{" "}
-                    </Text>
-                    <Text
-                        className="text-primary font-bold"
-                        onPress={() => router.replace("../login")}
-                    >
-                        Sign In
-                    </Text>
-                </View>
-            </View>
+                                {loading ? (
+                                    <ActivityIndicator
+                                        size="large"
+                                        color="#FFF"
+                                        className="my-4"
+                                    />
+                                ) : (
+                                    <TouchableOpacity
+                                        className="bg-tigerOrange py-4 rounded-full w-full shadow-sm mb-4"
+                                        onPress={handleSignUp}
+                                    >
+                                        <Text className="text-white text-xl font-bold text-center">
+                                            Create Account
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+
+                                <View className="flex-row justify-center mt-2">
+                                    <Text className="text-white text-base">
+                                        Already have an account?{" "}
+                                    </Text>
+                                    <Text
+                                        className="text-white font-bold text-base underline"
+                                        onPress={() => router.replace("../login")}
+                                    >
+                                        Sign In
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
         </View>
     );
 };

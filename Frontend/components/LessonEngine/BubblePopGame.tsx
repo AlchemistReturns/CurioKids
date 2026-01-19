@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { audioManager } from './AudioManager';
 
 const { width, height } = Dimensions.get('window');
 
 // --- CONSTANTS ---
-const COLORS = ['#E64A19', '#388E3C', '#1976D2', '#C2185B', '#FBC02D', '#0097A7'];
+const COLORS = ['#FF5252', '#448AFF', '#69F0AE', '#FFD740', '#E040FB'];
 const CHARACTERS = [
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
   'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
@@ -13,13 +13,13 @@ const CHARACTERS = [
 ];
 
 // Game Config
-const ROUND_DURATION = 10000; // 10 seconds of active play
-const PAUSE_DURATION = 4000;  // 4 seconds to listen/pause
-const TOTAL_ROUNDS = 3;       
+const ROUND_DURATION = 15000;
+const PAUSE_DURATION = 3000;
+const TOTAL_ROUNDS = 5;
 
 interface BubbleGameProps {
-    onComplete: (score: number, stars: number) => void;
-    onExit: () => void;
+  onComplete: (score: number, stars: number) => void;
+  onExit: () => void;
 }
 
 const BubblePopGame = ({ onComplete, onExit }: BubbleGameProps) => {
@@ -61,7 +61,7 @@ const BubblePopGame = ({ onComplete, onExit }: BubbleGameProps) => {
       return;
     }
 
-    setBubbles([]); 
+    setBubbles([]);
     setGameState('ANNOUNCING');
 
     const randomChar = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
@@ -85,7 +85,7 @@ const BubblePopGame = ({ onComplete, onExit }: BubbleGameProps) => {
         if (prev <= 1) {
           clearInterval(timerRef.current!);
           clearInterval(spawnerRef.current!);
-          startNewRound(); 
+          startNewRound();
           return 0;
         }
         return prev - 1;
@@ -97,19 +97,20 @@ const BubblePopGame = ({ onComplete, onExit }: BubbleGameProps) => {
     if (spawnerRef.current) clearInterval(spawnerRef.current);
     spawnerRef.current = setInterval(() => {
       spawnBubble(targetChar);
-    }, 700); 
+    }, 800);
   };
 
   const spawnBubble = (targetChar: string) => {
     const id = Date.now() + Math.random();
-    const size = Math.random() * 30 + 70; 
+    const size = Math.random() * 20 + 90; // Bigger balloons
     const x = Math.random() * (width - size);
     const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    
+
+    // 40% chance of target
     const isTarget = Math.random() < 0.4;
     const char = isTarget ? targetChar : CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
 
-    const newBubble = { id, x, y: height + size + 50, size, color, char, speed: Math.random() * 2 + 1.5 };
+    const newBubble = { id, x, y: height + 50, size, color, char, speed: Math.random() * 2 + 1.5 };
 
     setBubbles((prev) => [...prev, newBubble]);
   };
@@ -122,7 +123,7 @@ const BubblePopGame = ({ onComplete, onExit }: BubbleGameProps) => {
       setBubbles((prevBubbles) => {
         return prevBubbles
           .map((b) => ({ ...b, y: b.y - b.speed }))
-          .filter((b) => b.y + b.size > -100); 
+          .filter((b) => b.y + b.size > -200);
       });
     }, 16);
 
@@ -132,7 +133,7 @@ const BubblePopGame = ({ onComplete, onExit }: BubbleGameProps) => {
   const handlePop = (id: number, char: string) => {
     if (char === currentTarget) {
       setScore((prev) => prev + 10);
-      audioManager.play('pop'); 
+      audioManager.play('pop');
     } else {
       audioManager.play('boing');
     }
@@ -147,40 +148,55 @@ const BubblePopGame = ({ onComplete, onExit }: BubbleGameProps) => {
   const endGame = () => {
     stopGame();
     setGameState('FINISHED');
-    audioManager.play('correct'); 
-    
-    // Calculate Stars based on score
+    audioManager.play('correct');
+
     const stars = score >= 100 ? 3 : score >= 50 ? 2 : 1;
     onComplete(score, stars);
   };
 
   // --- RENDER ---
   return (
-    <View style={styles.container}>
+    <ImageBackground
+      source={require('../../assets/sky_bg.png')}
+      style={styles.container}
+      resizeMode="cover"
+    >
       {/* Exit Button */}
       <TouchableOpacity style={styles.exitBtn} onPress={onExit}>
-        <Text style={{fontSize: 24}}>❌</Text>
+        <Text style={{ fontSize: 20 }}>❌</Text>
       </TouchableOpacity>
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.scoreText}>Score: {score}</Text>
-        <Text style={styles.timerText}>
-          {gameState === 'ANNOUNCING' ? 'Listen...' : `Time: ${timeLeft}`}
-        </Text>
+        <View style={styles.scoreContainer}>
+          <Text style={styles.scoreLabel}>SCORE</Text>
+          <Text style={styles.scoreText}>{score}</Text>
+        </View>
+        <Image
+          source={require('../../assets/tiger_sitting.png')}
+          style={styles.headerTiger}
+          resizeMode="contain"
+        />
+        <View style={styles.timerContainer}>
+          <Text style={styles.timerLabel}>TARGET</Text>
+          <Text style={styles.timerText}>{currentTarget || "?"}</Text>
+        </View>
       </View>
 
-      {/* Announcement Overlay */}
+      {/* Announcement Overlay (Tiger Holding Sign) */}
       {gameState === 'ANNOUNCING' && (
         <View style={styles.overlay}>
-          <Text style={styles.instructionText}>Find this:</Text>
-          <Text style={styles.targetBigText}>{currentTarget}</Text>
-          <TouchableOpacity 
-            onPress={() => playTargetSound(currentTarget!)} 
-            style={styles.speakBtn}
-          >
-             <Text style={styles.speakBtnText}>🔊 Listen Again</Text>
-          </TouchableOpacity>
+          <View style={styles.announcementCard}>
+            <Image
+              source={require('../../assets/tiger_sitting.png')}
+              style={styles.tigerOverlay}
+              resizeMode="contain"
+            />
+            <View style={styles.signBoard}>
+              <Text style={styles.instructionText}>YOUR WORD IS</Text>
+              <Text style={styles.targetBigText}>{currentTarget}</Text>
+            </View>
+          </View>
         </View>
       )}
 
@@ -190,37 +206,39 @@ const BubblePopGame = ({ onComplete, onExit }: BubbleGameProps) => {
           key={bubble.id}
           style={[
             styles.balloonWrapper,
-            { left: bubble.x, top: bubble.y } 
+            { left: bubble.x, top: bubble.y }
           ]}
           onPress={() => handlePop(bubble.id, bubble.char)}
           activeOpacity={0.8}
         >
-          <View style={[styles.balloonBody, { 
-              width: bubble.size, 
-              height: bubble.size, 
-              backgroundColor: bubble.color 
-          }]}>
-             <View style={styles.balloonHighlight} />
-             <Text style={styles.bubbleText}>{bubble.char}</Text>
+          <View style={{ width: bubble.size, height: bubble.size * 1.2 }}>
+            <Image
+              source={require('../../assets/balloon_red.png')}
+              style={{ width: '100%', height: '100%', tintColor: bubble.color }}
+              resizeMode="contain"
+            />
+            <View style={styles.charContainer}>
+              <Text style={[styles.bubbleText, { fontSize: bubble.size * 0.4 }]}>{bubble.char}</Text>
+            </View>
           </View>
-          <View style={styles.balloonString} />
         </TouchableOpacity>
       ))}
-    </View>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E0F7FA', // Sky color
+    width: '100%',
+    height: '100%',
   },
   exitBtn: {
     position: 'absolute',
     top: 50,
     left: 20,
     zIndex: 100,
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(255,255,255,0.8)',
     borderRadius: 20,
     width: 40,
     height: 40,
@@ -235,89 +253,126 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 20,
-    paddingTop: 50,
+    alignItems: 'flex-start',
+    paddingHorizontal: 20,
+    paddingTop: 60,
     zIndex: 20,
+  },
+  scoreContainer: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFC226'
+  },
+  scoreLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#5A3E29',
+    letterSpacing: 1
   },
   scoreText: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '900',
+    color: '#FF6E4F',
+  },
+  timerContainer: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFC226',
+    minWidth: 80
+  },
+  timerLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#5A3E29',
+    letterSpacing: 1
   },
   timerText: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#D84315',
+    fontWeight: '900',
+    color: '#FF6E4F',
+  },
+  headerTiger: {
+    width: 60,
+    height: 60,
+    marginTop: -10
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     zIndex: 30,
   },
+  announcementCard: {
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  tigerOverlay: {
+    width: 150,
+    height: 150,
+    marginBottom: -40,
+    zIndex: 10
+  },
+  signBoard: {
+    backgroundColor: '#FFC226',
+    width: 280,
+    height: 280,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+    borderWidth: 4,
+    borderColor: '#FFF'
+  },
   instructionText: {
-    fontSize: 28,
-    color: '#555',
-    marginBottom: 10,
+    fontSize: 24,
+    color: '#FFF',
+    fontWeight: '900',
+    marginBottom: 0,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 1
   },
   targetBigText: {
-    fontSize: 120,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-  },
-  speakBtn: {
-      padding: 10,
-      backgroundColor: '#3357FF',
-      borderRadius: 10
-  },
-  speakBtnText: {
-      color: '#fff',
-      fontSize: 16
+    fontSize: 140,
+    fontWeight: '900',
+    color: '#FFF',
+    includeFontPadding: false,
+    lineHeight: 160
   },
   balloonWrapper: {
     position: 'absolute',
-    alignItems: 'center', 
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 10,
   },
-  balloonBody: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.15)',
-    shadowColor: "#000",
-    shadowOffset: { width: 2, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 6, 
-  },
-  balloonHighlight: {
+  charContainer: {
     position: 'absolute',
-    top: '15%',
-    left: '15%',
-    width: '25%',
-    height: '20%',
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderRadius: 999,
-    transform: [{ rotate: '-45deg' }]
-  },
-  balloonString: {
-    width: 2,
-    height: 50,
-    backgroundColor: '#90A4AE', 
-    marginTop: -4, 
-    zIndex: -1, 
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: '15%',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   bubbleText: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: '900',
     color: '#FFF',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: {width: 1, height: 1},
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
-    zIndex: 5, 
   },
 });
 

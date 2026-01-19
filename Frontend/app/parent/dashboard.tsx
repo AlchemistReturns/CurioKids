@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from 'expo-clipboard';
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthService } from "../../services/AuthService";
 import { UserService } from "../../services/UserService";
@@ -71,71 +71,74 @@ const ParentDashboardScreen = () => {
     }
   };
 
-  if (!user) return <View className="flex-1 bg-base" />;
+  if (!user) return <View className="flex-1 bg-tigerCream" />;
 
   return (
-    <SafeAreaView className="flex-1 bg-base" edges={['top']}>
-      <ScrollView className="px-6" showsVerticalScrollIndicator={false}>
-
-        {/* Header */}
-        <View className="flex-row justify-between items-center mt-4 mb-8">
-          <View>
-            <Text className="text-primary text-3xl font-bold">Dashboard</Text>
-          </View>
-          <TouchableOpacity onPress={handleSignOut} className="bg-[#D9534F] p-2 rounded-full">
-            <Ionicons name="log-out-outline" size={24} color="#fff" />
-          </TouchableOpacity>
+    <View className="flex-1 bg-tigerCream">
+      {/* Custom Header */}
+      <View className="bg-tigerYellow pt-12 pb-6 px-6 rounded-b-[40px] flex-row justify-between items-end shadow-sm z-10">
+        <View className="mb-2">
+          <Text className="text-tigerBrown text-3xl font-black">Parent Dashboard</Text>
+          <Text className="text-tigerBrown/70 text-base font-bold">Manage your little tigers</Text>
         </View>
+        <Image
+          source={require('../../assets/tiger.png')}
+          className="w-20 h-20"
+          resizeMode="contain"
+        />
+      </View>
+
+      <ScrollView className="flex-1 px-6 pt-6" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
 
         {/* Joining Code Card */}
         <TouchableOpacity
           onPress={copyToClipboard}
           activeOpacity={0.7}
-          className="bg-secondary rounded-3xl p-6 mb-8 shadow-lg border-2 border-primary/10"
+          className="bg-tigerCard rounded-3xl p-6 mb-8 shadow-sm border-2 border-tigerBrown/10"
         >
-
-          <Text className="text-primary text-sm uppercase font-bold tracking-wider text-center">Family Linking Code</Text>
-          <Text className="text-primary text-4xl font-mono font-bold tracking-widest text-center my-4">
+          <Text className="text-tigerBrown/60 text-sm uppercase font-black tracking-wider text-center">Family Linking Code</Text>
+          <Text className="text-tigerBrown text-4xl font-black tracking-widest text-center my-4">
             {linkKey ?? "..."}
           </Text>
           <View className="flex-row justify-center items-center">
-            <View className="bg-base/30 p-1.5 rounded-lg">
-              <Ionicons name="copy-outline" size={20} color="#3f51b5" />
+            <View className="bg-tigerBrown/10 p-2 rounded-lg flex-row items-center">
+              <Ionicons name="copy-outline" size={18} color="#5A3E29" />
+              <Text className="text-tigerBrown ml-2 font-bold">Tap to Copy</Text>
             </View>
           </View>
         </TouchableOpacity>
 
         {/* Children List */}
-        <Text className="text-primary text-2xl font-bold mb-4">My Children</Text>
+        <Text className="text-tigerBrown text-2xl font-black mb-4">My Children</Text>
 
         {childrenLoading ? (
-          <ActivityIndicator size="large" color="#3f51b5" className="mb-8" />
+          <ActivityIndicator size="large" color="#FF6E4F" className="mb-8" />
         ) : children.length === 0 ? (
-          <View className="bg-primary p-6 rounded-2xl items-center mb-8">
-            <Ionicons name="happy-outline" size={40} color="#edf0f7" className="mb-2" />
-            <Text className="text-secondary">No children connected yet.</Text>
+          <View className="bg-tigerCard p-6 rounded-2xl items-center mb-8">
+            <Ionicons name="happy-outline" size={40} color="#5A3E29" className="mb-2" />
+            <Text className="text-tigerBrown font-bold">No children connected yet.</Text>
           </View>
         ) : (
           <View className="mb-8">
             {children.map((child) => (
               <TouchableOpacity
                 key={child.id}
-                className="bg-primary p-6 rounded-2xl mb-3 shadow-md"
+                className="bg-white rounded-3xl mb-4 shadow-sm p-4"
                 onPress={() => router.push(`../parent/child/${child.id}`)}
                 activeOpacity={0.9}
               >
-                <View className="flex-row items-center mb-3">
-                  <View className="bg-base h-12 w-12 rounded-full items-center justify-center mr-4 border border-secondary">
-                    <Text className="text-primary font-bold text-lg">{(child.name?.[0] || child.email?.[0] || "C").toUpperCase()}</Text>
+                <View className="flex-row items-center mb-4">
+                  <View className="bg-tigerYellow h-14 w-14 rounded-full items-center justify-center mr-4 border-2 border-white shadow-sm">
+                    <Text className="text-tigerBrown font-black text-xl">{(child.name?.[0] || child.email?.[0] || "C").toUpperCase()}</Text>
                   </View>
                   <View className="flex-1">
-                    <Text className="text-white font-bold text-xl">{(child.name ?? "Unnamed Child").toUpperCase()}</Text>
-                    <Text className="text-secondary text-sm">{child.email}</Text>
+                    <Text className="text-tigerBrown font-black text-xl">{(child.name ?? "Unnamed Child")}</Text>
+                    <Text className="text-tigerBrown/60 text-sm font-bold">{child.email}</Text>
                   </View>
 
                   {/* Child Logout Button */}
                   <TouchableOpacity
-                    className="bg-red-500 p-2 rounded-lg ml-2"
+                    className="bg-tigerOrange/10 p-2.5 rounded-xl ml-2"
                     onPress={(e) => {
                       e.stopPropagation();
                       Alert.alert(
@@ -159,21 +162,21 @@ const ParentDashboardScreen = () => {
                       );
                     }}
                   >
-                    <Ionicons name="power" size={20} color="#FFF" />
+                    <Ionicons name="power" size={20} color="#FF6E4F" />
                   </TouchableOpacity>
 
-                  <Ionicons name="chevron-forward" size={24} color="#FFF" className="ml-2" />
+                  <Ionicons name="chevron-forward" size={24} color="#5A3E29" className="ml-2" />
                 </View>
 
                 {/* Child Stats Grid */}
-                <View className="flex-row bg-base/30 rounded-xl p-3 justify-between">
-                  <View className="items-center flex-1 border-r border-ternary">
-                    <Text className="text-white font-bold text-lg">{child.totalPoints ?? 0}</Text>
-                    <Text className="text-secondary text-[10px] uppercase">Points</Text>
+                <View className="flex-row bg-tigerCream rounded-2xl p-4 justify-between">
+                  <View className="items-center flex-1 border-r border-tigerBrown/10">
+                    <Text className="text-tigerBrown font-black text-xl">{child.totalPoints ?? 0}</Text>
+                    <Text className="text-tigerBrown/50 text-[10px] uppercase font-bold">Points</Text>
                   </View>
                   <View className="items-center flex-1">
-                    <Text className="text-white font-bold text-lg">#{child.rank}</Text>
-                    <Text className="text-secondary text-[10px] uppercase">Global Rank</Text>
+                    <Text className="text-tigerBrown font-black text-xl">#{child.rank}</Text>
+                    <Text className="text-tigerBrown/50 text-[10px] uppercase font-bold">Rank</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -181,19 +184,17 @@ const ParentDashboardScreen = () => {
           </View>
         )}
 
-        {/* Quick Actions */}
-        <Text className="text-primary text-xl font-bold mb-4">Actions</Text>
-        <View className="flex-row flex-wrap justify-between gap-y-4 mb-10">
-          <TouchableOpacity className="bg-primary w-full p-4 rounded-2xl flex-row items-center">
-            <Ionicons name="bar-chart-outline" size={28} color="#ffffff" className="mr-3" />
-            <View>
-              <Text className="text-white font-bold text-lg">View Detailed Reports</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+        {/* Action Button (e.g., Logout) moved to bottom or accessible via header */}
+        <TouchableOpacity
+          onPress={handleSignOut}
+          className="bg-tigerOrange py-4 rounded-2xl flex-row items-center justify-center mb-10 shadow-sm"
+        >
+          <Ionicons name="log-out-outline" size={24} color="#fff" style={{ marginRight: 8 }} />
+          <Text className="text-white font-bold text-lg">Sign Out</Text>
+        </TouchableOpacity>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

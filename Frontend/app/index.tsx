@@ -1,71 +1,91 @@
 import { router } from "expo-router";
-import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import React, { useState } from "react";
+import { Image, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const AppIndexScreen = () => {
-    const goToRegistration = () => {
+    const [showSignupOptions, setShowSignupOptions] = useState(false);
+
+    const goToLogin = () => {
+        router.push("/login"); // Ensure this matches your login route
+    };
+
+    const goToParentSignup = () => {
         router.push("/parent/registration");
     };
 
-    const goToChildRegistration = () => {
+    const goToChildSignup = () => {
         router.push("/child/registration");
     };
 
-    const goToLogin = () => {
-        router.push("/login");
-    };
-
     return (
-        <View className="flex-1 justify-center items-center px-6">
+        <View className="flex-1 bg-tigerYellow">
+            <SafeAreaView className="flex-1">
+                <View className="flex-1 justify-center items-center px-6">
 
-            <Text className="text-lg mb-12 text-center bg-orange-200 p-4 rounded-full text-orange-500 font-bold">
-                Learning made fun and effective
-            </Text>
+                    {/* Tiger Image Area */}
+                    <View className="flex-1 justify-center items-center w-full mt-10">
+                        <Image
+                            source={require('../assets/tiger.png')}
+                            className="w-full h-96"
+                            resizeMode="contain"
+                        />
+                    </View>
 
-            <Text className="text-6xl font-bold mb-8 text-center text-primary">
-                Unlock Your Child's Potential
-            </Text>
+                    {/* Buttons Area */}
+                    <View className="w-full mb-12">
+                        {!showSignupOptions ? (
+                            <>
+                                <TouchableOpacity
+                                    className="bg-tigerOrange py-4 rounded-full w-full mb-4 shadow-sm"
+                                    onPress={goToLogin}
+                                >
+                                    <Text className="text-white text-xl font-bold text-center">
+                                        Sign In
+                                    </Text>
+                                </TouchableOpacity>
 
-            <Text className="text-xl mb-12 text-center">
-                CurioKids is a gamified learning app that uses engaging lessons to teach skills, featuring AI support tutor and parental dashboard for monitoring progress.
-            </Text>
+                                <TouchableOpacity
+                                    className="bg-white border-2 border-white py-4 rounded-full w-full shadow-sm"
+                                    onPress={() => setShowSignupOptions(true)}
+                                >
+                                    <Text className="text-tigerOrange text-xl font-bold text-center">
+                                        Sign Up
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            <View className="bg-white/90 p-6 rounded-3xl w-full">
+                                <Text className="text-tigerOrange text-center font-bold mb-6 text-xl">Create Account</Text>
+                                <TouchableOpacity
+                                    className="bg-tigerOrange py-4 rounded-full w-full mb-4 shadow-sm"
+                                    onPress={goToParentSignup}
+                                >
+                                    <Text className="text-white text-xl font-bold text-center">
+                                        Parent
+                                    </Text>
+                                </TouchableOpacity>
 
-            <TouchableOpacity
-                className="bg-secondary py-4 px-8 rounded-xl w-full mb-4"
-                onPress={goToLogin}
-            >
-                <Text className="text-primary text-3xl font-bold text-center">
-                    Get Started
-                </Text>
-            </TouchableOpacity>
+                                <TouchableOpacity
+                                    className="bg-white border-2 border-tigerOrange py-4 rounded-full w-full mb-4 shadow-sm"
+                                    onPress={goToChildSignup}
+                                >
+                                    <Text className="text-tigerOrange text-xl font-bold text-center">
+                                        Child
+                                    </Text>
+                                </TouchableOpacity>
 
-            {/* <Text className="mb-4 text-3xl font-bold text-primary">
-                Register
-            </Text> */}
-
-            <View className="flex flex-row justify-between items-center w-full bg-white rounded-xl p-1">
-                <TouchableOpacity
-                    className="bg-base py-4 px-8 rounded-xl"
-                    onPress={goToRegistration}
-                >
-                    <Text className="text-primary text-xl font-semibold text-center">
-                        Parent Signup
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    className="bg-white py-4 px-8 rounded-xl"
-                    onPress={goToChildRegistration}
-                >
-                    <Text className="text-primary text-xl font-semibold text-center">
-                        Child Signup
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            <Text className="absolute bottom-10 text-xs text-primary">
-                All rights reserved
-            </Text>
+                                <TouchableOpacity
+                                    className="py-2"
+                                    onPress={() => setShowSignupOptions(false)}
+                                >
+                                    <Text className="text-tigerOrange/60 font-bold text-center">Cancel</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </SafeAreaView>
         </View>
     );
 };
