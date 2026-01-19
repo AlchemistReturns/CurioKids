@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     FlatList,
+    Image,
     Text,
     TouchableOpacity,
     View,
@@ -33,25 +34,25 @@ export default function Courses() {
 
     const renderCourseItem = ({ item }: { item: any }) => (
         <TouchableOpacity
-            className="bg-white mb-4 rounded-xl overflow-hidden shadow-sm border border-gray-100"
+            className="bg-white mb-4 rounded-3xl overflow-hidden shadow-sm border-2 border-tigerCream"
             onPress={() => router.push({ pathname: "/child/course/[id]", params: { id: item.id, title: item.title, color: item.color } })}
         >
             <View
                 className="h-32 justify-center items-center"
-                style={{ backgroundColor: item.color || "#4CAF50" }}
+                style={{ backgroundColor: item.color || "#FF6E4F" }}
             >
                 <Ionicons name={item.icon || "school"} size={64} color="white" />
             </View>
             <View className="p-4">
-                <Text className="text-xl font-bold text-gray-800 mb-1">
+                <Text className="text-xl font-black text-tigerBrown mb-1">
                     {item.title}
                 </Text>
-                <Text className="text-gray-500 text-sm" numberOfLines={2}>
+                <Text className="text-tigerBrown/70 text-sm font-bold" numberOfLines={2}>
                     {item.description}
                 </Text>
                 <View className="mt-4 flex-row items-center">
-                    <Text className="text-primary font-semibold mr-1">Start Learning</Text>
-                    <Ionicons name="arrow-forward" size={16} color="#5DADE2" />
+                    <Text className="text-tigerOrange font-black mr-1 text-base">Start Learning</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#FF6E4F" />
                 </View>
             </View>
         </TouchableOpacity>
@@ -59,18 +60,28 @@ export default function Courses() {
 
     if (loading) {
         return (
-            <View className="flex-1 justify-center items-center bg-base">
-                <ActivityIndicator size="large" color="#F0E491" />
+            <View className="flex-1 justify-center items-center bg-tigerCream">
+                <ActivityIndicator size="large" color="#FF6E4F" />
             </View>
         );
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-base" edges={["top"]}>
+        <View className="flex-1 bg-tigerCream">
+            {/* Custom Header */}
+            <View className="bg-tigerYellow pt-12 pb-6 px-6 rounded-b-[40px] flex-row justify-between items-end shadow-sm z-10 mb-4">
+                <View className="mb-2">
+                    <Text className="text-tigerBrown text-3xl font-black">Learning Path</Text>
+                    <Text className="text-tigerBrown/80 text-lg font-bold">Choose your adventure</Text>
+                </View>
+                <Image
+                    source={require('../../assets/tiger_sitting.png')}
+                    className="w-20 h-20"
+                    resizeMode="contain"
+                />
+            </View>
+
             <View className="px-6 flex-1">
-                <Text className="text-primary font-bold text-3xl mt-6 mb-6">
-                    Explore Courses
-                </Text>
                 <FlatList
                     data={courses}
                     renderItem={renderCourseItem}
@@ -79,6 +90,6 @@ export default function Courses() {
                     contentContainerStyle={{ paddingBottom: 20 }}
                 />
             </View>
-        </SafeAreaView>
+        </View>
     );
 }
