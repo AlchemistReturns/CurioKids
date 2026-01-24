@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { CourseService } from "../../../services/CourseService";
+import { UserService } from "../../../services/UserService";
+import { AuthService } from "../../../services/AuthService";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -26,15 +28,18 @@ export default function CourseDetailsScreen() {
     const { id, title, color } = useLocalSearchParams();
     const [modules, setModules] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [moduleScores, setModuleScores] = useState<Record<string, number>>({});
 
     useEffect(() => {
         if (id) {
-            fetchModules();
+            loadData();
         }
     }, [id]);
 
-    const fetchModules = async () => {
+    const loadData = async () => {
         try {
+            const user = await AuthService.getCurrentUser();
+            // Fetch modules
             const modulesData = await CourseService.getModules(id as string);
 
             const modulesWithLessons = await Promise.all(modulesData.map(async (module: any) => {
@@ -48,10 +53,18 @@ export default function CourseDetailsScreen() {
 
             // Sort modules
             const sortedModules = modulesWithLessons.sort((a: any, b: any) => a.order - b.order);
-
             setModules(sortedModules);
+
+            // Fetch Progress
+            if (user) {
+                const progress = await UserService.getProgress(user.uid);
+                if (progress && progress.moduleScores) {
+                    setModuleScores(progress.moduleScores);
+                }
+            }
+
         } catch (error) {
-            console.error("Error fetching modules:", error);
+            console.error("Error fetching course data:", error);
         } finally {
             setLoading(false);
         }
@@ -142,17 +155,33 @@ export default function CourseDetailsScreen() {
             >
                 {modules.map((module, moduleIndex) => {
                     const levelInfo = getLevelInfo(module.order);
+                    const score = moduleScores[module.id] !== undefined ? moduleScores[module.id] : 0;
+
+                    // Calculate Max Points
+                    const maxPoints = module.lessons.reduce((acc: number, lesson: any) => {
+                        if (lesson.points) return acc + lesson.points;
+                        if (['bubble_pop', 'balance_scale'].includes(lesson.type)) return acc + 50;
+                        return acc + 10;
+                    }, 0);
 
                     return (
                         <View key={module.id} className="mb-6">
                             {/* Level Header with Wave Design */}
                             <View
-                                className="rounded-t-2xl px-4 py-3 flex-row items-center"
+                                className="rounded-t-2xl px-4 py-3 flex-row items-center justify-between"
                                 style={{ backgroundColor: '#FFD54F' }}
                             >
-                                <Text className="text-xl font-bold text-[#5D4037]">
-                                    Level {module.order}: {module.title || levelInfo.title} {levelInfo.emoji}
-                                </Text>
+                                <View className="flex-row items-center max-w-[65%]">
+                                    <Text className="text-xl font-bold text-[#5D4037]">
+                                        Level {module.order}: {module.title || levelInfo.title} {levelInfo.emoji}
+                                    </Text>
+                                </View>
+
+                                {/* Score Display */}
+                                <View className="bg-white/90 px-3 py-1 rounded-full flex-row items-center shadow-sm">
+                                    <Ionicons name="star" size={14} color="#FF9800" />
+                                    <Text className="text-[#5D4037] font-black text-xs ml-1">{score} / {maxPoints} pts</Text>
+                                </View>
                             </View>
 
                             {/* Wavy Separator */}

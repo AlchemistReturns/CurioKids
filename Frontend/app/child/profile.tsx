@@ -1,25 +1,32 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { AuthService } from "../../services/AuthService";
 import { UserService } from "../../services/UserService";
 import { User } from "../../types";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ChildProfile({ user }: { user: User }) {
   const [profileData, setProfileData] = useState<any>(null);
+  const [progressData, setProgressData] = useState<any>(null);
 
-  useEffect(() => {
-    loadProfile();
-  }, [user]);
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [user])
+  );
 
   const loadProfile = async () => {
     if (!user) return;
     try {
-      const data = await UserService.getProfile(user.uid);
-      if (data) setProfileData(data);
+      const [profile, progress] = await Promise.all([
+        UserService.getProfile(user.uid),
+        UserService.getProgress(user.uid)
+      ]);
+      if (profile) setProfileData(profile);
+      if (progress) setProgressData(progress);
     } catch (e) {
       console.error("Error loading profile", e);
     }
@@ -31,6 +38,10 @@ export default function ChildProfile({ user }: { user: User }) {
   // Extract marks from DB (from 'categoryScores' map)
   const subjects = profileData?.categoryScores || {};
   const subjectKeys = Object.keys(subjects);
+
+  const badges = progressData?.badges || [];
+  const streak = progressData?.streak || 0;
+  const totalPoints = progressData?.totalPoints || 0;
 
   return (
     <View className="flex-1 bg-tigerCream">
@@ -55,6 +66,79 @@ export default function ChildProfile({ user }: { user: User }) {
       </View>
 
       <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
+
+        {/* Stats Section with Fire Streak */}
+        <View className="flex-row justify-between mb-8">
+          {/* Streak */}
+          <View className="bg-white p-4 rounded-3xl flex-1 mr-2 items-center justify-center border-2 border-tigerOrdering/10 shadow-sm relative">
+            <Ionicons name="flame" size={60} color="#FF8C00" />
+            <View className="absolute top-[28px] items-center justify-center w-full">
+              <Text className="text-white font-black text-lg shadow-sm">{streak}</Text>
+            </View>
+            <Text className="text-tigerBrown font-bold mt-1">Day Streak</Text>
+          </View>
+
+          {/* Points/Stars */}
+          <View className="bg-white p-4 rounded-3xl flex-1 ml-2 items-center justify-center border-2 border-tigerBrown/10 shadow-sm">
+            <Ionicons name="star" size={50} color="#FFD700" className="mb-1" />
+            <Text className="text-tigerOrange text-2xl font-black">{totalPoints}</Text>
+            <Text className="text-tigerBrown font-bold">Total Stars</Text>
+          </View>
+        </View>
+
+        {/* League Section */}
+        <View className="mb-8">
+          <Text className="text-tigerBrown text-xl font-black mb-4">Current League</Text>
+          <View className="bg-white rounded-3xl overflow-hidden shadow-sm border-2 border-tigerBrown/10 relative">
+            <Image
+              source={require('../../assets/league_banner.png')}
+              className="w-full h-32"
+              resizeMode="cover"
+            />
+            <View className="absolute inset-0 bg-black/30 justify-center items-center">
+              <Text
+                className="text-white text-3xl font-black uppercase tracking-widest"
+                style={{ textShadowColor: 'rgba(0, 0, 0, 0.75)', textShadowOffset: { width: 2, height: 2 }, textShadowRadius: 5 }}
+              >
+                {totalPoints >= 500 ? "King" : (totalPoints >= 100 ? "Bloomer" : "Novice")}
+              </Text>
+              <Text
+                className="text-white font-bold opacity-90"
+                style={{ textShadowColor: 'rgba(0, 0, 0, 0.75)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 }}
+              >
+                {totalPoints >= 500 ? "Top 100" : (totalPoints >= 100 ? "Rising Star" : "Just Started")}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Badges Section */}
+        <Text className="text-tigerBrown text-xl font-black mb-4">My Badges</Text>
+        {badges.length === 0 ? (
+          <View className="bg-tigerCard p-4 rounded-3xl items-center mb-8 border-2 border-tigerBrown/5">
+            <Text className="text-tigerBrown font-bold text-center">No badges yet.</Text>
+            <Text className="text-tigerBrown/60 text-xs mt-1">Complete courses to earn them!</Text>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-8">
+            {badges.map((badge: any, index: number) => (
+              <TouchableOpacity
+                key={index}
+                className="bg-white p-3 rounded-2xl mr-3 items-center w-28 border-2 border-tigerCream shadow-sm"
+                onPress={() => Alert.alert("Badge Earned!", `You completed: ${badge.name}`)}
+              >
+                <Image
+                  source={require('../../assets/badge_trophy.png')}
+                  className="w-16 h-16 mb-2"
+                  resizeMode="contain"
+                />
+                <Text className="text-tigerBrown text-xs font-bold text-center leading-4" numberOfLines={2}>
+                  {badge.name.replace(' Master', '')}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
         {/* Academic Performance Section */}
         <Text className="text-tigerBrown text-xl font-black mb-4">Subject Points</Text>
