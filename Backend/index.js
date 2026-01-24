@@ -8,6 +8,7 @@ const progressRoutes = require('./routes/progressRoutes');
 const authRoutes = require('./routes/authRoutes');
 const courseRoutes = require('./routes/courseRoutes');
 const userRoutes = require('./routes/userRoutes');
+const taskRoutes = require('./routes/taskRoutes');
 
 const app = express();
 // Ensure PORT is defined (defaulting to 3000)
@@ -23,6 +24,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // Health check route to test connection from phone browser
 app.get('/', (req, res) => {
@@ -32,8 +34,10 @@ app.get('/', (req, res) => {
 // IMPORTANT: Listen on '0.0.0.0' to allow connections from your physical phone
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`-----------------------------------------------`);
+    // Verified IP address from ipconfig
+    const localIP = '192.168.31.201';
     console.log(`Server is running!`);
     console.log(`Local Access: http://localhost:${PORT}`);
-    console.log(`Phone Access: http://192.168.1.106:${PORT}`);
+    console.log(`Phone Access: http://${localIP}:${PORT}`);
     console.log(`-----------------------------------------------`);
 });

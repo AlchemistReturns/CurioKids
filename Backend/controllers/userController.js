@@ -59,9 +59,14 @@ exports.getChildren = async (req, res) => {
             .where('parentUid', '==', parentId)
             .get();
 
-        const children = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
+        const children = await Promise.all(snapshot.docs.map(async doc => {
+            const progressDoc = await firestore.collection('child_progress').doc(doc.id).get();
+            const progressData = progressDoc.exists ? progressDoc.data() : {};
+            return {
+                id: doc.id,
+                ...doc.data(),
+                ...progressData
+            };
         }));
         res.json(children);
     } catch (error) {
