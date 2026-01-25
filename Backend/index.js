@@ -25,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/session', require('./routes/sessionRoutes'));
 
 // Health check route to test connection from phone browser
 app.get('/', (req, res) => {

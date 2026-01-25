@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, Vi
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthService } from "../../services/AuthService";
 import { UserService } from "../../services/UserService";
+import { useSession } from "../../context/SessionContext";
 
 // Extended Child Interface to include Rank
 interface ChildData {
@@ -23,10 +24,14 @@ const ParentDashboardScreen = () => {
   const [children, setChildren] = useState<ChildData[]>([]);
   const [childrenLoading, setChildrenLoading] = useState(false);
 
+  // Use session context just to enforce Role = 'parent' (prevents timeout overlay)
+  const { setRole, logout } = useSession();
+
   // Load data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadData();
+      setRole('parent'); // Ensure parent role when in this screen
     }, [])
   );
 
@@ -57,7 +62,7 @@ const ParentDashboardScreen = () => {
 
   const handleSignOut = async () => {
     try {
-      await AuthService.logout();
+      await logout();
       router.replace("/login");
     } catch (error) {
       Alert.alert("Error", "Error signing out");
@@ -170,6 +175,12 @@ const ParentDashboardScreen = () => {
 
                 {/* Child Stats Grid */}
                 <View className="flex-row bg-tigerCream rounded-2xl p-4 justify-between">
+                  {/* Added Session Control Hint */}
+                  <View className="items-center flex-1 border-r border-tigerBrown/10 justify-center">
+                    <Text className="text-tigerBrown font-bold">Controls</Text>
+                    <Text className="text-tigerBrown/50 text-[10px] uppercase font-bold">Manage Time</Text>
+                  </View>
+
                   <View className="items-center flex-1 border-r border-tigerBrown/10">
                     <Text className="text-tigerBrown font-black text-xl">{child.totalPoints ?? 0}</Text>
                     <Text className="text-tigerBrown/50 text-[10px] uppercase font-bold">Points</Text>

@@ -13,12 +13,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthService } from "../services/AuthService";
+import { useSession } from "../context/SessionContext";
 
 const LoginScreen = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const { login } = useSession();
 
     const handleSignIn = async () => {
         if (!email || !password) {
@@ -30,7 +32,8 @@ const LoginScreen = () => {
         setLoading(true);
 
         try {
-            await AuthService.login(email, password);
+            const user = await AuthService.login(email, password);
+            await login(user);
             router.replace("/(tabs)/dashboard");
         } catch (err: any) {
             console.error(err);
