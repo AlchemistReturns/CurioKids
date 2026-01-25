@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CourseService } from "../../../services/CourseService";
 import { TaskService, Task } from "../../../services/TaskService";
 import { UserService } from "../../../services/UserService";
+import { SessionService, SessionData } from "../../../services/SessionService";
 
 export default function ChildDetailScreen() {
     const { id } = useLocalSearchParams();
@@ -13,33 +14,48 @@ export default function ChildDetailScreen() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Session State
+    const [session, setSession] = useState<SessionData | null>(null);
+    const [refreshingSession, setRefreshingSession] = useState(false);
+
     // Modal State
     const [assignModalVisible, setAssignModalVisible] = useState(false);
     const [courses, setCourses] = useState<any[]>([]);
     const [modules, setModules] = useState<any[]>([]);
     const [selectedCourse, setSelectedCourse] = useState<any>(null);
     const [selectedModule, setSelectedModule] = useState<any>(null);
+
     const [assigning, setAssigning] = useState(false);
+
+    // Custom Time Modal State
+    const [timeModalVisible, setTimeModalVisible] = useState(false);
+    const [customH, setCustomH] = useState(0);
+    const [customM, setCustomM] = useState(30);
+    const [customS, setCustomS] = useState(0);
 
     useFocusEffect(
         useCallback(() => {
             loadData();
+            // Poll for session updates every 2s
+            const interval = setInterval(fetchSession, 2000);
+            return () => clearInterval(interval);
         }, [id])
     );
 
     const loadData = async () => {
         setLoading(true);
         try {
-            // Fetch Child Profile
-            const childData = await UserService.getProfile(id as string);
+            // Parallel Fetch
+            const [childData, taskList, courseList, sessionData] = await Promise.all([
+                UserService.getProfile(id as string),
+                TaskService.getChildTasks(id as string),
+                CourseService.getCourses(),
+                SessionService.getSession(id as string)
+            ]);
+
             setChild(childData);
-
-            // Fetch Tasks
-            const taskList = await TaskService.getChildTasks(id as string);
             setTasks(taskList);
-
-            // Fetch Courses for Dropdown
-            const courseList = await CourseService.getCourses();
+            setSession(sessionData);
 
             // Inject Test Course
             const testCourse = {
@@ -60,12 +76,121 @@ export default function ChildDetailScreen() {
         }
     };
 
+    const fetchSession = async () => {
+        try {
+            const data = await SessionService.getSession(id as string);
+
+            // Apply Pending Action Locally for Display
+            // If Child is offline, pendingAction sits in DB. We should show the RESULT of that action.
+            if (data.pendingAction) {
+                const action = data.pendingAction;
+                if (action.type === 'add_time') {
+                    data.timeLeft = Math.max(0, data.timeLeft + (action.value * 60));
+                    data.isActive = true;
+                } else if (action.type === 'set_active') {
+                    data.isActive = action.value;
+                } else if (action.type === 'reset') {
+                    data.timeLeft = action.value;
+                    data.isActive = true;
+                }
+            }
+            setSession(data);
+        } catch (e) {
+            console.log('Session sync failed');
+        }
+    }
+
+    const sendAction = async (actionFn: () => any) => {
+        if (!session) return;
+        setRefreshingSession(true);
+        try {
+            const action = actionFn();
+            // Optimistic Update (Guess)
+            if (action.type === 'add_time') {
+                setSession({ ...session, timeLeft: Math.max(0, session.timeLeft + (action.value * 60)), isActive: true });
+            } else if (action.type === 'set_active') {
+                setSession({ ...session, isActive: action.value });
+            }
+
+            let finalAction = action;
+
+            // MERGE Logic: Check if there's already a pending action of the same type
+            // This prevents rapid clicks from overwriting previous ones
+            if (session.pendingAction && session.pendingAction.type === 'add_time' && action.type === 'add_time') {
+                console.log('Merging Actions:', session.pendingAction.value, '+', action.value);
+                finalAction = {
+                    ...action,
+                    value: session.pendingAction.value + action.value
+                };
+            }
+
+            await SessionService.updateSession(id as string, {
+                pendingAction: { ...finalAction, id: Math.random().toString(36).substring(7) },
+                lastUpdatedBy: 'parent'
+            });
+        } catch (e) {
+            Alert.alert("Error", "Failed to send command");
+        } finally {
+            setRefreshingSession(false);
+        }
+    };
+
+    const handleAddTime = (minutes: number) => {
+        sendAction(() => ({ type: 'add_time', value: minutes }));
+    };
+
+    const handleSetCustomTime = () => {
+        const totalSeconds = (customH * 3600) + (customM * 60) + customS;
+        sendAction(() => ({ type: 'reset', value: totalSeconds }));
+        setTimeModalVisible(false);
+    };
+
+    const adjustTime = (type: 'h' | 'm' | 's', delta: number) => {
+        if (type === 'h') setCustomH(prev => Math.max(0, Math.min(23, prev + delta)));
+        if (type === 'm') setCustomM(prev => {
+            const next = prev + delta;
+            if (next > 59) return 0;
+            if (next < 0) return 59;
+            return next;
+        });
+        if (type === 's') setCustomS(prev => {
+            const next = prev + delta;
+            if (next > 59) return 0;
+            if (next < 0) return 59;
+            return next;
+        });
+    };
+
+    const openTimeModal = () => {
+        // Pre-fill with current time remaining (optional, or just default to 00:30:00)
+        if (session) {
+            const h = Math.floor(session.timeLeft / 3600);
+            const m = Math.floor((session.timeLeft % 3600) / 60);
+            const s = session.timeLeft % 60;
+            setCustomH(h);
+            setCustomM(m);
+            setCustomS(s);
+        }
+        setTimeModalVisible(true);
+    };
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}m ${secs}s`;
+    };
+
+    const formatHours = (seconds: number) => {
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        return `${hrs}h ${mins}m`;
+    };
+
     const handleCourseSelect = async (course: any) => {
         setSelectedCourse(course);
         setSelectedModule(null);
         try {
             if (course.isTest) {
-                // Mock modules for Test Course
                 setModules([
                     { id: 'test_module_1', title: 'Test Module 1' },
                     { id: 'test_module_2', title: 'Test Module 2' }
@@ -87,11 +212,7 @@ export default function ChildDetailScreen() {
 
         setAssigning(true);
         try {
-            // Needed parentId. Assuming we can get it from child or auth context if stored. 
-            // In this simplistic flow, we'll try to get it from child's data (parentUid) or just pass a dummy if missing (backend might need it).
-            // Actually, backend requires it. childData usually has parentUid. 
             const parentId = child?.parentUid;
-
             await TaskService.assignTask({
                 parentId: parentId,
                 childId: id,
@@ -103,14 +224,9 @@ export default function ChildDetailScreen() {
 
             Alert.alert("Success", "Task assigned!");
             setAssignModalVisible(false);
-            loadData(); // Reload tasks
-
-            // Limit tasks?
-            // "Missed task will be added to a list seperately..."
-            // We manage active tasks here.
+            loadData();
         } catch (e) {
             Alert.alert("Error", "Failed to assign task");
-            console.error(e);
         } finally {
             setAssigning(false);
         }
@@ -124,11 +240,8 @@ export default function ChildDetailScreen() {
         );
     }
 
-    // Filter tasks
     const activeTasks = tasks.filter(t => t.status === 'pending');
     const completedTasks = tasks.filter(t => t.status === 'completed');
-    // Missed tasks? Backend might handle status update logic later, 
-    // but for now let's just show Pending and Completed here.
 
     return (
         <View className="flex-1 bg-tigerCream">
@@ -138,11 +251,89 @@ export default function ChildDetailScreen() {
                 </TouchableOpacity>
                 <View>
                     <Text className="text-tigerBrown text-2xl font-black">{child?.name || "Child Details"}</Text>
-                    <Text className="text-tigerBrown/70 font-bold">Manage Tasks</Text>
+                    <Text className="text-tigerBrown/70 font-bold">Manage & Monitor</Text>
                 </View>
             </View>
 
             <ScrollView className="flex-1 px-6">
+
+                {/* --- Screen Time Controls --- */}
+                {session && (
+                    <View className="bg-tigerCard rounded-3xl p-6 mb-8 shadow-sm border-2 border-tigerBrown/10">
+                        <View className="flex-row items-center justify-between mb-4">
+                            <Text className="text-tigerBrown/60 text-sm uppercase font-black tracking-wider">Screen Time & Lumo's Energy</Text>
+                            <View className={`px-2 py-1 rounded-full ${session.isActive ? 'bg-green-100' : 'bg-red-100'}`}>
+                                <Text className={`text-xs font-bold ${session.isActive ? 'text-green-700' : 'text-red-700'}`}>
+                                    {session.isActive ? 'ACTIVE' : 'PAUSED'}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Stats Row */}
+                        <View className="flex-row justify-between items-end mb-6">
+                            <View>
+                                <Text className="text-tigerBrown text-4xl font-black tracking-widest">
+                                    {formatTime(session.timeLeft)}
+                                </Text>
+                                <Text className="text-sm font-bold text-tigerBrown/50">REMAINING</Text>
+                            </View>
+                            <View className="items-end">
+                                <Text className="text-tigerBrown text-2xl font-black tracking-widest">
+                                    {formatHours(session.totalUsageToday)}
+                                </Text>
+                                <Text className="text-sm font-bold text-tigerBrown/50">USED TODAY</Text>
+                            </View>
+                        </View>
+
+                        {/* Controls */}
+                        {/* Row 1: Fine Tune +/- 1m */}
+                        <View className="flex-row justify-between mb-3">
+                            <TouchableOpacity onPress={() => handleAddTime(-1)} className="bg-white flex-1 mr-2 p-3 rounded-xl items-center border border-tigerBrown/10">
+                                <Text className="text-tigerBrown font-black">-1m</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleAddTime(1)} className="bg-white flex-1 ml-2 p-3 rounded-xl items-center border border-tigerBrown/10">
+                                <Text className="text-tigerBrown font-black">+1m</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Row 2: Bulk +/- 15m AND Custom */}
+                        <View className="flex-row justify-between mb-4">
+                            <TouchableOpacity onPress={() => handleAddTime(-15)} className="bg-white flex-1 mr-2 p-3 rounded-xl items-center border border-tigerBrown/10">
+                                <Text className="text-tigerBrown font-black">-15m</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={openTimeModal} className="bg-tigerYellow flex-1 mx-1 p-3 rounded-xl items-center border border-tigerOrange">
+                                <Text className="text-tigerBrown font-black">Set Time</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleAddTime(15)} className="bg-white flex-1 ml-2 p-3 rounded-xl items-center border border-tigerBrown/10">
+                                <Text className="text-tigerBrown font-black">+15m</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Row 3: Actions */}
+                        <View className="flex-row justify-between">
+                            <TouchableOpacity
+                                onPress={() => sendAction(() => ({ type: 'set_active', value: !session.isActive }))}
+                                className={`flex-1 mr-2 p-3 rounded-xl items-center border-2 ${session.isActive ? 'bg-tigerOrange/20 border-tigerOrange' : 'bg-green-100 border-green-500'}`}
+                            >
+                                <View className="flex-row items-center">
+                                    <Ionicons name={session.isActive ? "pause" : "play"} size={20} color={session.isActive ? "#FF6E4F" : "green"} />
+                                    <Text className={`font-bold ml-1 ${session.isActive ? 'text-tigerOrange' : 'text-green-700'}`}>
+                                        {session.isActive ? "Pause" : "Resume"}
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={() => sendAction(() => ({ type: 'reset', value: 1800 }))}
+                                className="bg-tigerBrown flex-1 ml-2 p-3 rounded-xl items-center flex-row justify-center"
+                            >
+                                <Ionicons name="refresh" size={18} color="#FFF" />
+                                <Text className="text-tigerCream font-bold ml-1">Reset</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+
 
                 {/* Active Tasks Section */}
                 <View className="flex-row justify-between items-center mb-4">
@@ -166,13 +357,9 @@ export default function ChildDetailScreen() {
                             <View className="flex-1">
                                 <Text className="text-tigerBrown font-bold text-lg">{task.courseName}</Text>
                                 <Text className="text-tigerBrown/70 text-sm">{task.moduleTitle}</Text>
-                                {/* <Text className="text-xs text-gray-400 mt-1">Due: {new Date(task.dueDate!).toLocaleDateString()}</Text> */}
                             </View>
                             <View className="flex-row items-center">
-                                {/* Empty box for incomplete visual */}
                                 <View className="border-2 border-gray-300 w-8 h-8 rounded-lg mr-3" />
-
-                                {/* Trash Icon */}
                                 <TouchableOpacity
                                     onPress={() => {
                                         Alert.alert(
@@ -220,6 +407,83 @@ export default function ChildDetailScreen() {
 
             </ScrollView>
 
+            {/* Custom Time Picker Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={timeModalVisible}
+                onRequestClose={() => setTimeModalVisible(false)}
+            >
+                <View className="flex-1 justify-center items-center bg-black/60 px-6">
+                    <View className="bg-white p-6 rounded-3xl w-full shadow-lg">
+                        <Text className="text-center text-tigerBrown text-2xl font-black mb-6">Set Timer</Text>
+
+                        <View className="flex-row justify-center items-center mb-8 bg-tigerCream/50 p-4 rounded-2xl">
+                            {/* Hours */}
+                            <View className="items-center mx-2">
+                                <TouchableOpacity onPress={() => adjustTime('h', 1)} className="p-2">
+                                    <Ionicons name="chevron-up" size={30} color="#5A3E29" />
+                                </TouchableOpacity>
+                                <Text className="text-4xl font-black text-tigerOrange my-2 w-16 text-center">
+                                    {customH.toString().padStart(2, '0')}
+                                </Text>
+                                <Text className="text-xs font-bold text-tigerBrown/50 uppercase">hours</Text>
+                                <TouchableOpacity onPress={() => adjustTime('h', -1)} className="p-2">
+                                    <Ionicons name="chevron-down" size={30} color="#5A3E29" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text className="text-4xl font-black text-tigerBrown/20 -mt-6">:</Text>
+
+                            {/* Minutes */}
+                            <View className="items-center mx-2">
+                                <TouchableOpacity onPress={() => adjustTime('m', 1)} className="p-2">
+                                    <Ionicons name="chevron-up" size={30} color="#5A3E29" />
+                                </TouchableOpacity>
+                                <Text className="text-4xl font-black text-tigerOrange my-2 w-16 text-center">
+                                    {customM.toString().padStart(2, '0')}
+                                </Text>
+                                <Text className="text-xs font-bold text-tigerBrown/50 uppercase">mins</Text>
+                                <TouchableOpacity onPress={() => adjustTime('m', -1)} className="p-2">
+                                    <Ionicons name="chevron-down" size={30} color="#5A3E29" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text className="text-4xl font-black text-tigerBrown/20 -mt-6">:</Text>
+
+                            {/* Seconds */}
+                            <View className="items-center mx-2">
+                                <TouchableOpacity onPress={() => adjustTime('s', 1)} className="p-2">
+                                    <Ionicons name="chevron-up" size={30} color="#5A3E29" />
+                                </TouchableOpacity>
+                                <Text className="text-4xl font-black text-tigerOrange my-2 w-16 text-center">
+                                    {customS.toString().padStart(2, '0')}
+                                </Text>
+                                <Text className="text-xs font-bold text-tigerBrown/50 uppercase">secs</Text>
+                                <TouchableOpacity onPress={() => adjustTime('s', -1)} className="p-2">
+                                    <Ionicons name="chevron-down" size={30} color="#5A3E29" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <View className="flex-row">
+                            <TouchableOpacity
+                                onPress={() => setTimeModalVisible(false)}
+                                className="flex-1 bg-gray-200 py-4 rounded-xl mr-2 items-center"
+                            >
+                                <Text className="font-bold text-gray-500 text-lg">Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={handleSetCustomTime}
+                                className="flex-1 bg-tigerOrange py-4 rounded-xl ml-2 items-center"
+                            >
+                                <Text className="font-bold text-white text-lg">Set Time</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
             {/* Assignment Modal */}
             <Modal
                 animationType="slide"
@@ -237,7 +501,6 @@ export default function ChildDetailScreen() {
                         </View>
 
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            {/* 1. Course Selection */}
                             <Text className="text-tigerBrown font-bold mb-2 text-lg">Select Course</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
                                 {courses.map((course) => (
@@ -251,7 +514,6 @@ export default function ChildDetailScreen() {
                                 ))}
                             </ScrollView>
 
-                            {/* 2. Module Selection */}
                             {selectedCourse && (
                                 <>
                                     <Text className="text-tigerBrown font-bold mb-2 text-lg">Select Module</Text>

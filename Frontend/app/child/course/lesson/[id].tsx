@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthService } from "../../../../services/AuthService";
 import { ChildProgressService } from "../../../../services/ChildProgressService";
 import { CourseService } from "../../../../services/CourseService";
+import { useSession } from "../../../../context/SessionContext";
 
 // --- 🔊 AUDIO MANAGER ---
 import { audioManager } from "@/components/LessonEngine/AudioManager";
@@ -39,6 +40,7 @@ type TigerMood = 'happy' | 'thinking' | 'sad' | 'success';
 
 export default function LessonScreen() {
     const { courseId, moduleId, id, title } = useLocalSearchParams();
+    const { setBusy, timeLeft } = useSession(); // Get timeLeft
 
     // Data State
     const [lesson, setLesson] = useState<any>(null);
@@ -69,10 +71,12 @@ export default function LessonScreen() {
     useEffect(() => {
         audioManager.loadSounds(); // Ensure SFX are loaded
         fetchLesson();
+        setBusy(true); // GRACEFUL TIMEOUT: Busy learning
 
         // Cleanup TTS on unmount
         return () => {
             audioManager.stopSpeaking();
+            setBusy(false); // Can timeout now
         };
     }, [id]);
 
@@ -244,6 +248,14 @@ export default function LessonScreen() {
         setCompleting(true);
         try {
             await ChildProgressService.markItemComplete(user.uid, id as string, lesson.points || 10, lesson.stars || 1);
+
+            // GRACEFUL TIMEOUT CHECK:
+            // If time is up, don't go to next lesson. Let timeout take over.
+            if (timeLeft <= 0) {
+                setBusy(false); // Timeout Screen will appear immediately
+                return;
+            }
+
             await navigateToNextLesson();
         } catch (error) { console.error(error); } finally { setCompleting(false); }
     };
@@ -255,6 +267,9 @@ export default function LessonScreen() {
         setCompleting(true);
         try {
             await ChildProgressService.markItemComplete(user.uid, id as string, result.score || lesson.points, result.stars || 3);
+
+            if (timeLeft <= 0) { setBusy(false); return; } // Timeout Check
+
             await navigateToNextLesson();
         } catch (e) { console.error(e); } finally { setCompleting(false); }
     };
@@ -265,6 +280,9 @@ export default function LessonScreen() {
         setCompleting(true);
         try {
             await ChildProgressService.markItemComplete(user.uid, id as string, score || 50, stars || 3);
+
+            if (timeLeft <= 0) { setBusy(false); return; } // Timeout Check
+
             await navigateToNextLesson();
         } catch (e) { console.error(e); } finally { setCompleting(false); }
     };
@@ -275,6 +293,9 @@ export default function LessonScreen() {
         setCompleting(true);
         try {
             await ChildProgressService.markItemComplete(user.uid, id as string, score || 50, stars || 3);
+
+            if (timeLeft <= 0) { setBusy(false); return; } // Timeout Check
+
             await navigateToNextLesson();
         } catch (e) { console.error(e); } finally { setCompleting(false); }
     };
