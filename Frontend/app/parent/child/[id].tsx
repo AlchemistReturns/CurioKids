@@ -25,6 +25,11 @@ export default function ChildDetailScreen() {
     const [selectedCourse, setSelectedCourse] = useState<any>(null);
     const [selectedModule, setSelectedModule] = useState<any>(null);
 
+    // Enrollment Management State
+    const [enrollmentModalVisible, setEnrollmentModalVisible] = useState(false);
+    const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+    const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
+
     const [assigning, setAssigning] = useState(false);
 
     // Custom Time Modal State
@@ -57,17 +62,11 @@ export default function ChildDetailScreen() {
             setTasks(taskList);
             setSession(sessionData);
 
-            // Inject Test Course
-            const testCourse = {
-                id: 'test_course_id_1',
-                title: 'TEST',
-                description: 'Click to complete instantly!',
-                icon: 'flask',
-                color: '#9C27B0',
-                isTest: true,
-                stars: 50
-            };
-            setCourses([...courseList, testCourse]);
+            // Fetch Enrollments
+            const enrolledIds = await CourseService.getEnrolledCourses(id as string);
+            setEnrolledCourseIds(enrolledIds);
+
+            setCourses(courseList);
 
         } catch (e) {
             console.error(e);
@@ -204,6 +203,17 @@ export default function ChildDetailScreen() {
         }
     };
 
+    const handleToggleEnrollment = async (courseId: string) => {
+        const isEnrolled = enrolledCourseIds.includes(courseId);
+        const newStatus = !isEnrolled;
+        try {
+            const updatedList = await CourseService.toggleEnrollment(id as string, courseId, newStatus);
+            setEnrolledCourseIds(updatedList);
+        } catch (e) {
+            Alert.alert("Error", "Failed to update enrollment");
+        }
+    };
+
     const handleAssign = async () => {
         if (!selectedCourse || !selectedModule) {
             Alert.alert("Error", "Please select both a course and a module.");
@@ -335,7 +345,33 @@ export default function ChildDetailScreen() {
                 )}
 
 
-                {/* Active Tasks Section */}
+                {/* --- Enrolled Courses Section --- */}
+                <View className="mb-8">
+                    <View className="flex-row justify-between items-center mb-4">
+                        <Text className="text-tigerBrown text-xl font-black">Enrolled Courses</Text>
+                        <TouchableOpacity
+                            onPress={() => setEnrollmentModalVisible(true)}
+                            className="bg-tigerYellow px-4 py-2 rounded-xl border border-tigerOrange"
+                        >
+                            <Text className="text-tigerBrown font-bold">Manage Courses</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {enrolledCourseIds.length === 0 ? (
+                        <View className="bg-white p-4 rounded-2xl items-center border border-dashed border-tigerBrown/20">
+                            <Text className="text-tigerBrown/60 font-bold">No courses enrolled yet.</Text>
+                        </View>
+                    ) : (
+                        <View className="flex-row flex-wrap">
+                            {courses.filter(c => enrolledCourseIds.includes(c.id)).map(course => (
+                                <View key={course.id} className="bg-white mr-2 mb-2 px-3 py-1 rounded-full border border-tigerBrown/10">
+                                    <Text className="text-tigerBrown text-xs font-bold">{course.title}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+                </View>
+
                 <View className="flex-row justify-between items-center mb-4">
                     <Text className="text-tigerBrown text-xl font-black">Assigned Tasks</Text>
                     <TouchableOpacity
@@ -347,72 +383,77 @@ export default function ChildDetailScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {activeTasks.length === 0 ? (
-                    <View className="bg-white p-6 rounded-2xl items-center border-2 border-tigerBrown/5 mb-6">
-                        <Text className="text-tigerBrown font-bold">No tasks assigned.</Text>
-                    </View>
-                ) : (
-                    activeTasks.map((task, index) => (
-                        <View key={index} className="bg-white p-4 rounded-2xl mb-3 shadow-sm border-l-4 border-tigerOrange flex-row justify-between items-center">
-                            <View className="flex-1">
-                                <Text className="text-tigerBrown font-bold text-lg">{task.courseName}</Text>
-                                <Text className="text-tigerBrown/70 text-sm">{task.moduleTitle}</Text>
-                            </View>
-                            <View className="flex-row items-center">
-                                <View className="border-2 border-gray-300 w-8 h-8 rounded-lg mr-3" />
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        Alert.alert(
-                                            "Delete Task",
-                                            "Are you sure you want to remove this task?",
-                                            [
-                                                { text: "Cancel", style: "cancel" },
-                                                {
-                                                    text: "Delete", style: "destructive", onPress: async () => {
-                                                        try {
-                                                            await TaskService.deleteTask(task.id);
-                                                            loadData();
-                                                        } catch (e) {
-                                                            Alert.alert("Error", "Failed to delete task");
+                {
+                    activeTasks.length === 0 ? (
+                        <View className="bg-white p-6 rounded-2xl items-center border-2 border-tigerBrown/5 mb-6">
+                            <Text className="text-tigerBrown font-bold">No tasks assigned.</Text>
+                        </View>
+                    ) : (
+                        activeTasks.map((task, index) => (
+                            <View key={index} className="bg-white p-4 rounded-2xl mb-3 shadow-sm border-l-4 border-tigerOrange flex-row justify-between items-center">
+                                <View className="flex-1">
+                                    <Text className="text-tigerBrown font-bold text-lg">{task.courseName}</Text>
+                                    <Text className="text-tigerBrown/70 text-sm">{task.moduleTitle}</Text>
+                                </View>
+                                <View className="flex-row items-center">
+                                    <View className="border-2 border-gray-300 w-8 h-8 rounded-lg mr-3" />
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            Alert.alert(
+                                                "Delete Task",
+                                                "Are you sure you want to remove this task?",
+                                                [
+                                                    { text: "Cancel", style: "cancel" },
+                                                    {
+                                                        text: "Delete", style: "destructive", onPress: async () => {
+                                                            try {
+                                                                await TaskService.deleteTask(task.id);
+                                                                loadData();
+                                                            } catch (e) {
+                                                                Alert.alert("Error", "Failed to delete task");
+                                                            }
                                                         }
                                                     }
-                                                }
-                                            ]
-                                        );
-                                    }}
-                                    className="bg-red-50 p-2 rounded-full"
-                                >
-                                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                                </TouchableOpacity>
+                                                ]
+                                            );
+                                        }}
+                                        className="bg-red-50 p-2 rounded-full"
+                                    >
+                                        <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                                    </TouchableOpacity>
+                                </View>
                             </View>
-                        </View>
-                    ))
-                )}
+                        ))
+                    )
+                }
 
                 {/* Completed Tasks Section */}
-                {completedTasks.length > 0 && (
-                    <>
-                        <Text className="text-tigerBrown text-xl font-black mb-4 mt-4">Completed Tasks</Text>
-                        {completedTasks.map((task, index) => (
-                            <View key={index} className="bg-white p-4 rounded-2xl mb-3 shadow-sm border-l-4 border-green-500 flex-row justify-between items-center opacity-70">
-                                <View className="flex-1">
-                                    <Text className="text-tigerBrown font-bold text-lg line-through">{task.courseName}</Text>
-                                    <Text className="text-tigerBrown/70 text-sm line-through">{task.moduleTitle}</Text>
+                {
+                    completedTasks.length > 0 && (
+                        <>
+                            <Text className="text-tigerBrown text-xl font-black mb-4 mt-4">Completed Tasks</Text>
+                            {completedTasks.map((task, index) => (
+                                <View key={index} className="bg-white p-4 rounded-2xl mb-3 shadow-sm border-l-4 border-green-500 flex-row justify-between items-center opacity-70">
+                                    <View className="flex-1">
+                                        <Text className="text-tigerBrown font-bold text-lg line-through">{task.courseName}</Text>
+                                        <Text className="text-tigerBrown/70 text-sm line-through">{task.moduleTitle}</Text>
+                                    </View>
+                                    <Ionicons name="checkmark-circle" size={32} color="green" />
                                 </View>
-                                <Ionicons name="checkmark-circle" size={32} color="green" />
-                            </View>
-                        ))}
-                    </>
-                )}
+                            ))}
+                        </>
+                    )
+                }
 
-            </ScrollView>
+            </ScrollView >
 
             {/* Custom Time Picker Modal */}
-            <Modal
+            < Modal
                 animationType="fade"
                 transparent={true}
                 visible={timeModalVisible}
-                onRequestClose={() => setTimeModalVisible(false)}
+                onRequestClose={() => setTimeModalVisible(false)
+                }
             >
                 <View className="flex-1 justify-center items-center bg-black/60 px-6">
                     <View className="bg-white p-6 rounded-3xl w-full shadow-lg">
@@ -482,10 +523,10 @@ export default function ChildDetailScreen() {
                         </View>
                     </View>
                 </View>
-            </Modal>
+            </Modal >
 
             {/* Assignment Modal */}
-            <Modal
+            < Modal
                 animationType="slide"
                 transparent={true}
                 visible={assignModalVisible}
@@ -555,7 +596,78 @@ export default function ChildDetailScreen() {
                         </View>
                     </View>
                 </View>
-            </Modal>
-        </View>
+            </Modal >
+
+            {/* Enrollment Management Modal */}
+            < Modal
+                animationType="slide"
+                transparent={true}
+                visible={enrollmentModalVisible}
+                onRequestClose={() => setEnrollmentModalVisible(false)}
+            >
+                <View className="flex-1 justify-end bg-black/50">
+                    <View className="bg-white rounded-t-[30px] p-6 h-[70%]">
+                        <View className="flex-row justify-between items-center mb-6">
+                            <Text className="text-tigerBrown text-2xl font-black">Manage Enrollments</Text>
+                            <TouchableOpacity onPress={() => setEnrollmentModalVisible(false)}>
+                                <Ionicons name="close" size={28} color="#5A3E29" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text className="text-tigerBrown/60 font-bold mb-4">
+                            Select courses to make them visible on {child?.name || "your child"}'s dashboard.
+                        </Text>
+
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {courses.map(course => {
+                                const isEnrolled = enrolledCourseIds.includes(course.id);
+                                const isExpanded = expandedCourseId === course.id;
+
+                                return (
+                                    <View key={course.id} className="mb-3">
+                                        <TouchableOpacity
+                                            onPress={() => setExpandedCourseId(isExpanded ? null : course.id)}
+                                            className={`flex-row items-center justify-between p-4 rounded-2xl border-2 ${isEnrolled ? 'bg-tigerYellow/10 border-tigerYellow' : 'bg-white border-gray-100'}`}
+                                        >
+                                            <View className="flex-row items-center flex-1">
+                                                <View className={`w-10 h-10 rounded-full items-center justify-center mr-3`} style={{ backgroundColor: course.color || '#ccc' }}>
+                                                    <Ionicons name={course.icon || 'school'} size={20} color="white" />
+                                                </View>
+                                                <View>
+                                                    <Text className="text-tigerBrown font-bold text-lg">{course.title}</Text>
+                                                    <Text className="text-tigerBrown/50 text-xs font-bold">Age: {course.ageTag || 'All ages'}</Text>
+                                                </View>
+                                            </View>
+
+                                            {/* Enrollment Checkbox (Separate Touch Area) */}
+                                            <TouchableOpacity
+                                                onPress={() => handleToggleEnrollment(course.id)}
+                                                className={`w-8 h-8 rounded-lg items-center justify-center border-2 ${isEnrolled ? 'bg-tigerOrange border-tigerOrange' : 'border-gray-300'}`}
+                                            >
+                                                {isEnrolled && <Ionicons name="checkmark" size={20} color="white" />}
+                                            </TouchableOpacity>
+                                        </TouchableOpacity>
+
+                                        {/* Expandable Description */}
+                                        {isExpanded && (
+                                            <View className="bg-tigerCream/50 mx-2 p-3 rounded-b-xl -mt-2 border border-t-0 border-tigerBrown/5">
+                                                <Text className="text-tigerBrown/70 text-sm">{course.description || "No description available."}</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                );
+                            })}
+                        </ScrollView>
+
+                        <TouchableOpacity
+                            onPress={() => setEnrollmentModalVisible(false)}
+                            className="bg-tigerBrown py-4 rounded-xl items-center mt-4"
+                        >
+                            <Text className="text-white font-bold text-lg">Done</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal >
+        </View >
     );
 }

@@ -13,9 +13,10 @@ const CHARACTERS = [
 ];
 
 // Game Config
+// Game Config
 const ROUND_DURATION = 15000;
 const PAUSE_DURATION = 3000;
-const TOTAL_ROUNDS = 5;
+const TOTAL_ROUNDS = 3; // Reduced for better UX
 
 interface BubbleGameProps {
   onComplete: (score: number, stars: number) => void;
@@ -29,11 +30,11 @@ const BubblePopGame = ({ onComplete, onExit }: BubbleGameProps) => {
   const [currentTarget, setCurrentTarget] = useState<string | null>(null);
   const [gameState, setGameState] = useState<'IDLE' | 'ANNOUNCING' | 'PLAYING' | 'FINISHED'>('IDLE');
   const [timeLeft, setTimeLeft] = useState(ROUND_DURATION / 1000);
-  const [roundCount, setRoundCount] = useState(0);
 
-  // Refs
-  const timerRef = useRef<number | null>(null);
-  const spawnerRef = useRef<number | null>(null);
+  // Refs for Game Loop
+  const roundCountRef = useRef(0);
+  const timerRef = useRef<any>(null); // Fixed type
+  const spawnerRef = useRef<any>(null); // Fixed type
 
   // --- Lifecycle & Audio Setup ---
   useEffect(() => {
@@ -56,7 +57,8 @@ const BubblePopGame = ({ onComplete, onExit }: BubbleGameProps) => {
 
   // --- Game Control ---
   const startNewRound = () => {
-    if (roundCount >= TOTAL_ROUNDS) {
+    // Check ref value (always current)
+    if (roundCountRef.current >= TOTAL_ROUNDS) {
       endGame();
       return;
     }
@@ -68,14 +70,15 @@ const BubblePopGame = ({ onComplete, onExit }: BubbleGameProps) => {
     setCurrentTarget(randomChar);
     playTargetSound(randomChar);
 
+    // Increment Round
+    roundCountRef.current += 1;
+
     setTimeout(() => {
       setGameState('PLAYING');
       setTimeLeft(ROUND_DURATION / 1000);
       startTimer();
       startSpawner(randomChar);
     }, PAUSE_DURATION);
-
-    setRoundCount(prev => prev + 1);
   };
 
   const startTimer = () => {

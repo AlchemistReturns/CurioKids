@@ -35,6 +35,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const [role, setRole] = useState<Role>('child');
     const [isActive, setIsActive] = useState(true);
     const [isBusy, setIsBusy] = useState(false);
+    const [loginGrace, setLoginGrace] = useState(false); // Grace period to prevent timeout flash on login
 
     const [uid, setUid] = useState<string | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
@@ -135,7 +136,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
         setRole(userRole);
         AsyncStorage.setItem('session_role', userRole);
+
+        // Enable grace period to allow cloud sync before showing timeout
+        setLoginGrace(true);
         setIsInitialized(true);
+        setTimeout(() => setLoginGrace(false), 3000); // 3 seconds grace for sync
     };
 
     const logout = async () => {
@@ -317,7 +322,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
                 role,
                 isActive,
                 isBusy,
-                isTimeout: isInitialized && !!uid && timeLeft === 0 && role === 'child' && !isBusy, // Accurate Timeout
+                // Accurate Timeout: Must be initialized, logged in, time 0, child role, not busy, and NOT in grace period
+                isTimeout: isInitialized && !!uid && timeLeft === 0 && role === 'child' && !isBusy && !loginGrace,
                 setRole: (r) => {
                     setRole(r);
                     AsyncStorage.setItem('session_role', r);
