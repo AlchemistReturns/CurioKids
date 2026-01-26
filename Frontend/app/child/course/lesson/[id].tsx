@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
+    Alert, // Added Alert
     Animated,
     Dimensions,
     LayoutAnimation,
@@ -198,6 +199,9 @@ export default function LessonScreen() {
             const cId = courseId as string;
             const mId = moduleId as string;
 
+            // Debug Alert
+            // Alert.alert("Debug", `Navigating from ${cId} / ${mId} / ${id}`);
+
             // 1. Get all lessons in current module to find next one
             const lessons = await CourseService.getLessons(cId, mId);
             const sortedLessons = lessons.sort((a: any, b: any) => a.order - b.order);
@@ -215,6 +219,7 @@ export default function LessonScreen() {
             // 2. Next Module
             const modules = await CourseService.getModules(cId);
             const sortedModules = modules.sort((a: any, b: any) => a.order - b.order);
+            // Alert.alert("Debug Modules", `Found ${modules.length} modules.`);
             const currentModIndex = sortedModules.findIndex((m: any) => m.id === mId);
 
             if (currentModIndex !== -1 && currentModIndex < sortedModules.length - 1) {
@@ -232,14 +237,21 @@ export default function LessonScreen() {
             }
 
             // Course complete - navigate to courses menu in nav bar
-            router.dismissTo("/(tabs)/courses");
-        } catch (error) { console.error("Navigation Error", error); }
+            // Alert.alert("Debug", "Course Complete! Returning to menu.");
+            router.replace("/(tabs)/courses");
+        } catch (error: any) {
+            console.error("Navigation Error", error);
+            Alert.alert("Nav Error", error.message || "Unknown error during navigation");
+        }
     };
 
 
     const handleComplete = async () => {
         const user = await AuthService.getCurrentUser();
-        if (!user) return;
+        if (!user) {
+            Alert.alert("Error", "No user found");
+            return;
+        }
 
         // Ensure Logic games are actually solved
         const isGame = ['logic_pattern', 'logic_sorting', 'logic_sequencing', 'logic_drag'].includes(lesson.type);
@@ -257,7 +269,10 @@ export default function LessonScreen() {
             }
 
             await navigateToNextLesson();
-        } catch (error) { console.error(error); } finally { setCompleting(false); }
+        } catch (error: any) {
+            console.error(error);
+            Alert.alert("Completion Error", error.message || "Failed to save progress");
+        } finally { setCompleting(false); }
     };
 
     // --- EXTERNAL GAME HANDLERS ---
@@ -271,7 +286,10 @@ export default function LessonScreen() {
             if (timeLeft <= 0) { setBusy(false); return; } // Timeout Check
 
             await navigateToNextLesson();
-        } catch (e) { console.error(e); } finally { setCompleting(false); }
+        } catch (e: any) {
+            console.error(e);
+            Alert.alert("Completion Error", e.message);
+        } finally { setCompleting(false); }
     };
 
     const handleBubbleComplete = async (score: number, stars: number) => {
@@ -284,7 +302,10 @@ export default function LessonScreen() {
             if (timeLeft <= 0) { setBusy(false); return; } // Timeout Check
 
             await navigateToNextLesson();
-        } catch (e) { console.error(e); } finally { setCompleting(false); }
+        } catch (e: any) {
+            console.error(e);
+            Alert.alert("Completion Error", e.message);
+        } finally { setCompleting(false); }
     };
 
     const handleBalanceComplete = async (score: number, stars: number) => {
@@ -297,7 +318,10 @@ export default function LessonScreen() {
             if (timeLeft <= 0) { setBusy(false); return; } // Timeout Check
 
             await navigateToNextLesson();
-        } catch (e) { console.error(e); } finally { setCompleting(false); }
+        } catch (e: any) {
+            console.error(e);
+            Alert.alert("Completion Error", e.message);
+        } finally { setCompleting(false); }
     };
 
 

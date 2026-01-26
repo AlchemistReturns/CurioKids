@@ -36,12 +36,7 @@ interface BalanceScaleGameProps {
     onExit: () => void;
 }
 
-const SCALE_DROP_ZONE = {
-    x: width * 0.5,  // Expanded from 0.6 to 0.5
-    y: height * 0.25, // Expanded from 0.3 to 0.25
-    width: width * 0.35, // Expanded from 0.25 to 0.35
-    height: height * 0.25, // Expanded from 0.15 to 0.25
-};
+
 
 export default function BalanceScaleGame({
     leftTotal,
@@ -57,7 +52,7 @@ export default function BalanceScaleGame({
     onComplete,
     onExit,
 }: BalanceScaleGameProps) {
-    const [rightTotal, setRightTotal] = useState(initialRightTotal);
+    const [rightTotal, setRightTotal] = useState(Number(initialRightTotal || 0));
     const [placedWeights, setPlacedWeights] = useState<Weight[]>([]);
     const [initialRightWeights, setInitialRightWeights] = useState<Weight[]>([]);
     const [inventoryWeights, setInventoryWeights] = useState<Weight[]>([]);
@@ -70,6 +65,13 @@ export default function BalanceScaleGame({
     const lastTiltDirection = useRef<string>("balanced");
     const winTimerRef = useRef<NodeJS.Timeout | null>(null);
     const soundTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const dropZoneRef = useRef<View>(null);
+    const onCompleteRef = useRef(onComplete);
+
+    // Update the ref whenever onComplete changes
+    useEffect(() => {
+        onCompleteRef.current = onComplete;
+    }, [onComplete]);
 
     useEffect(() => {
         // Load sounds
@@ -101,7 +103,7 @@ export default function BalanceScaleGame({
         // Initialize inventory weights
         const weights: Weight[] = availableWeights.map((value, index) => ({
             id: `weight-${index}`,
-            value,
+            value: Number(value),
             x: 0,
             y: 0,
         }));
@@ -111,7 +113,7 @@ export default function BalanceScaleGame({
         if (mode === "subtraction" && initialRightTotal > 0) {
             const initialWeights: Weight[] = [{
                 id: 'initial-rock',
-                value: initialRightTotal,
+                value: Number(initialRightTotal),
                 x: 0,
                 y: 0
             }];
@@ -217,7 +219,8 @@ export default function BalanceScaleGame({
 
         // Check win condition - only if we have placed weights and not already showing success
         // For subtraction mode, allow rightTotal to equal leftTotal (even if 0 or negative)
-        const isBalanced = leftTotal === rightTotal;
+        // Ensure strictly numeric comparison to avoid string vs number issues
+        const isBalanced = Number(leftTotal) === Number(rightTotal);
         const hasPlacedWeights = placedWeights.length > 0;
 
         if (isBalanced && hasPlacedWeights && !showSuccess) {
@@ -249,7 +252,8 @@ export default function BalanceScaleGame({
                 clearTimeout(winTimerRef.current);
             }
         };
-    }, [leftTotal, rightTotal, placedWeights, showSuccess, onComplete]);
+        // Removed onComplete from dependencies to prevent timer reset
+    }, [leftTotal, rightTotal, placedWeights, showSuccess]);
 
     const beamStyle = useAnimatedStyle(() => {
         return {
@@ -318,32 +322,33 @@ export default function BalanceScaleGame({
     };
 
     const handleWeightDrop = async (weightId: string, value: number, dropX: number, dropY: number, isFromScale: boolean = false) => {
-        // Check if dropped on the right side of the scale
-        const isOnScale =
-            dropX >= SCALE_DROP_ZONE.x &&
-            dropX <= SCALE_DROP_ZONE.x + SCALE_DROP_ZONE.width &&
-            dropY >= SCALE_DROP_ZONE.y &&
-            dropY <= SCALE_DROP_ZONE.y + SCALE_DROP_ZONE.height;
+        // Use measureInWindow to get accurate drop zone coordinates from the rendered view
+        dropZoneRef.current?.measureInWindow((x, y, width, height) => {
+            const isOnScale =
+                dropX >= x &&
+                dropX <= x + width &&
+                dropY >= y &&
+                dropY <= y + height;
 
-        if (isFromScale) {
-            // Removing from scale back to inventory
-            if (!isOnScale) {
-                setRightTotal((prev) => prev - value);
-                setPlacedWeights((prev) => prev.filter((w) => w.id !== weightId));
-                setInventoryWeights((prev) => [...prev, { id: weightId, value, x: 0, y: 0 }]);
+            if (isFromScale) {
+                // Removing from scale back to inventory
+                if (!isOnScale) {
+                    setRightTotal((prev) => Number(prev) - Number(value));
+                    setPlacedWeights((prev) => prev.filter((w) => w.id !== weightId));
+                    setInventoryWeights((prev) => [...prev, { id: weightId, value: Number(value), x: 0, y: 0 }]);
+                }
+            } else {
+                // Adding from inventory to scale
+                if (isOnScale) {
+                    setRightTotal((prev) => Number(prev) + Number(value));
+                    setPlacedWeights((prev) => [
+                        ...prev,
+                        { id: weightId, value: Number(value), x: 0, y: 0 },
+                    ]);
+                    setInventoryWeights((prev) => prev.filter((w) => w.id !== weightId));
+                }
             }
-        } else {
-            // Adding from inventory to scale
-            if (isOnScale) {
-                setRightTotal((prev) => prev + value);
-                setPlacedWeights((prev) => [
-                    ...prev,
-                    { id: weightId, value, x: SCALE_DROP_ZONE.x + 20, y: SCALE_DROP_ZONE.y + 40 },
-                ]);
-                setInventoryWeights((prev) => prev.filter((w) => w.id !== weightId));
-            }
-        }
-        // If not on scale/inventory, weight will snap back (handled by gesture handler)
+        });
     };
 
     return (
@@ -363,7 +368,6 @@ export default function BalanceScaleGame({
                 </View>
 
                 <View style={styles.gameArea}>
-                    {/* Instructions */}
                     <View style={[styles.instructionBox, { backgroundColor: "white" }]}>
                         <View style={[styles.mascotRow, { alignItems: 'flex-start' }]}>
                             <TigerMascot mood="thinking" size="small" />
@@ -423,7 +427,10 @@ export default function BalanceScaleGame({
                             </View>
 
                             {/* Right Side - Drop Zone */}
-                            <View style={[styles.scaleSide, styles.rightSide, { borderColor: themeColors.secondary }]}>
+                            <View
+                                ref={dropZoneRef}
+                                style={[styles.scaleSide, styles.rightSide, { borderColor: themeColors.secondary }]}
+                            >
                                 <View style={[styles.weightContainer, { flexWrap: "wrap", gap: 6 }]}>
                                     {/* Show initial weights (rocks) for subtraction mode */}
                                     {mode === "subtraction" && initialRightWeights.map((weight) => (
@@ -493,7 +500,7 @@ export default function BalanceScaleGame({
                                 onPress={() => {
                                     const score = 50;
                                     const stars = 3;
-                                    onComplete(score, stars);
+                                    onCompleteRef.current(score, stars);
                                 }}
                             >
                                 <Text style={styles.tryAgainText}>Continue →</Text>
@@ -529,7 +536,7 @@ export default function BalanceScaleGame({
                     )}
                 </View>
             </GestureHandlerRootView>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }
 
