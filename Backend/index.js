@@ -10,6 +10,7 @@ const courseRoutes = require('./routes/courseRoutes');
 const userRoutes = require('./routes/userRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const friendsRoutes = require('./routes/friendsRoutes');
 
 const app = express();
 // Ensure PORT is defined (defaulting to 3000)
@@ -28,6 +29,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/session', require('./routes/sessionRoutes'));
+app.use('/api/friends', friendsRoutes);
 
 // Health check route to test connection from phone browser
 app.get('/', (req, res) => {
