@@ -1,7 +1,6 @@
 import { Stack } from "expo-router";
 import "./globals.css";
 import { SessionProvider } from "../context/SessionContext";
-import TimeoutScreen from "../components/TimeoutScreen";
 
 export default function RootLayout() {
     return (
@@ -14,7 +13,6 @@ export default function RootLayout() {
                     },
                 }}
             />
-            <TimeoutScreen />
         </SessionProvider>
     );
 }

@@ -10,7 +10,6 @@ import Animated, {
 import LottieView from 'lottie-react-native';
 import * as Speech from 'expo-speech';
 import { useSession } from '../context/SessionContext';
-import { router } from 'expo-router';
 import { AuthService } from '../services/AuthService';
 
 const MemoizedLottie = React.memo(() => (
@@ -42,7 +41,6 @@ export default function TimeoutScreen() {
             // Auto-Logout after 10 seconds
             const timer = setTimeout(async () => {
                 await logout(); // Context logout
-                router.replace('/login');
             }, 10000);
 
             return () => clearTimeout(timer);
