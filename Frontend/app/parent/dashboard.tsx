@@ -173,22 +173,38 @@ const ParentDashboardScreen = () => {
                   <Ionicons name="chevron-forward" size={24} color="#5A3E29" className="ml-2" />
                 </View>
 
-                {/* Child Stats Grid */}
-                <View className="flex-row bg-tigerCream rounded-2xl p-4 justify-between">
-                  {/* Added Session Control Hint */}
-                  <View className="items-center flex-1 border-r border-tigerBrown/10 justify-center">
-                    <Text className="text-tigerBrown font-bold">Controls</Text>
+                {/* Child Action Tabs */}
+                <View className="flex-row bg-tigerCream rounded-2xl overflow-hidden border-2 border-tigerBrown/10">
+                  {/* Controls Tab */}
+                  <TouchableOpacity
+                    className="items-center flex-1 py-4 border-r border-tigerBrown/10 bg-tigerCream"
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push(`../parent/child/${child.id}`);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="settings-outline" size={24} color="#5A3E29" />
+                    <Text className="text-tigerBrown font-bold mt-1">Controls</Text>
                     <Text className="text-tigerBrown/50 text-[10px] uppercase font-bold">Manage Time</Text>
-                  </View>
+                  </TouchableOpacity>
 
-                  <View className="items-center flex-1 border-r border-tigerBrown/10">
-                    <Text className="text-tigerBrown font-black text-xl">{child.totalPoints ?? 0}</Text>
-                    <Text className="text-tigerBrown/50 text-[10px] uppercase font-bold">Points</Text>
-                  </View>
-                  <View className="items-center flex-1">
-                    <Text className="text-tigerBrown font-black text-xl">#{child.rank}</Text>
-                    <Text className="text-tigerBrown/50 text-[10px] uppercase font-bold">Rank</Text>
-                  </View>
+                  {/* Analytics Tab */}
+                  <TouchableOpacity
+                    className="items-center flex-1 py-4 bg-tigerCream"
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push({
+                        pathname: '/parent/analytics',
+                        params: { childId: child.id, childName: child.name }
+                      });
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="stats-chart" size={24} color="#FF6E4F" />
+                    <Text className="text-tigerOrange font-bold mt-1">Analytics</Text>
+                    <Text className="text-tigerBrown/50 text-[10px] uppercase font-bold">View Insights</Text>
+                  </TouchableOpacity>
                 </View>
               </TouchableOpacity>
             ))}

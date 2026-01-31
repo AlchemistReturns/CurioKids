@@ -28,6 +28,23 @@ const sessionController = {
                 // Check Daily Reset
                 if (data.lastResetDate !== todayStr) {
                     // It's a new day! Reset usage.
+
+                    // SAVE HISTORY: Store previous day's stats
+                    if (data.lastResetDate) {
+                        try {
+                            const historyRef = firestore.collection('users').doc(uid).collection('usage_stats').doc(data.lastResetDate);
+                            await historyRef.set({
+                                date: data.lastResetDate,
+                                totalUsageToday: data.totalUsageToday || 0,
+                                timeLeft: data.timeLeft,
+                                isActive: data.isActive || true
+                            });
+                            console.log(`Saved usage stats for ${uid} on ${data.lastResetDate}`);
+                        } catch (err) {
+                            console.error("Failed to save usage history:", err);
+                        }
+                    }
+
                     // Optional: Reset timeLeft to default allowance? Let's say yes for "Fresh Start"
                     sessionData = {
                         ...data,
