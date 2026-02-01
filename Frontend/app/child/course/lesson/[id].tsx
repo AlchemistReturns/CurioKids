@@ -6,6 +6,7 @@ import {
     Alert, // Added Alert
     Animated,
     Dimensions,
+    Image, // Added Image
     LayoutAnimation,
     Platform,
     Text,
@@ -19,6 +20,7 @@ import { AuthService } from "../../../../services/AuthService";
 import { ChildProgressService } from "../../../../services/ChildProgressService";
 import { CourseService } from "../../../../services/CourseService";
 import { useSession } from "../../../../context/SessionContext";
+import { CURRENCY_IMAGES } from "@/constants/CurrencyImages"; // Added Import for Lumo Assets
 
 // --- 🔊 AUDIO MANAGER ---
 import { audioManager } from "@/components/LessonEngine/AudioManager";
@@ -387,7 +389,11 @@ export default function LessonScreen() {
                     const isSelected = selectedOption === item;
                     const isTarget = item === lesson.data.correctAnswer;
 
-                    if (isCorrect && !isTarget) return <View key={index} className="w-24 h-24 opacity-20 bg-gray-200 rounded-xl m-2" />;
+                    // Check if item is a valid image key
+                    // @ts-ignore
+                    const imageSource = CURRENCY_IMAGES[item];
+
+                    if (isCorrect && !isTarget) return <View key={index} className="w-40 h-40 opacity-20 bg-gray-200 rounded-xl m-2" />;
 
                     return (
                         <TouchableOpacity
@@ -398,17 +404,27 @@ export default function LessonScreen() {
                         >
                             <Animated.View
                                 style={{ transform: [{ translateX: isSelected && !isTarget ? shakeAnim : 0 }, { scale: isCorrect && isTarget ? 1.2 : 1 }] }}
-                                className={`w-24 h-24 rounded-2xl justify-center items-center shadow-lg border-b-4 
+                                className={`w-40 h-40 p-2 rounded-2xl justify-center items-center shadow-lg border-b-4 
                                 ${isCorrect && isTarget ? 'bg-green-400 border-green-600' : 'bg-white border-blue-200'}`}
                             >
-                                <Text className="text-5xl">{item}</Text>
+                                {imageSource ? (
+                                    <Image source={imageSource} className="w-full h-full" resizeMode="contain" />
+                                ) : (
+                                    <Text
+                                        className={`${item.length > 5 ? 'text-2xl' : 'text-5xl'} text-center font-bold`}
+                                        adjustsFontSizeToFit
+                                        numberOfLines={2}
+                                    >
+                                        {item}
+                                    </Text>
+                                )}
                             </Animated.View>
                         </TouchableOpacity>
                     );
                 })}
             </View>
-            <View className="mt-8 bg-white/20 p-4 rounded-xl">
-                <Text className="text-white text-lg font-bold text-center">
+            <View className="mt-8 bg-white/60 p-4 rounded-xl">
+                <Text className="text-amber-900 text-lg font-bold text-center">
                     {isCorrect ? lesson.data.explanation : "Tap the one that fits the question!"}
                 </Text>
             </View>
