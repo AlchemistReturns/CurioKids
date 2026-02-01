@@ -9,4 +9,9 @@ router.get('/:uid/progress', userController.getChildProgress);
 router.get('/:uid/link-key', userController.getLinkKey);
 router.get('/:parentId/children', userController.getChildren);
 
+// New Routes
+router.post('/purchase', userController.purchaseCourse);
+router.post('/enroll', userController.enrollChild);
+router.post('/unenroll', userController.unenrollChild);
+
 module.exports = router;

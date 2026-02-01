@@ -122,79 +122,101 @@ export default function ChildDashboardScreen() {
       <ScrollView className="flex-1 px-6 pt-8" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
 
         {/* BIG Play Button */}
-        <TouchableOpacity
-          className="bg-tigerCard py-6 px-6 rounded-3xl flex-row items-center justify-between mb-8 shadow-sm"
-          onPress={() => router.push("/(tabs)/courses")}
-        >
-          <View>
-            <Text className="text-tigerBrown text-2xl font-black uppercase tracking-widest mb-1">Fun with Numbers</Text>
-            <Text className="text-tigerBrown/70 font-bold">Continue Learning</Text>
-          </View>
-          <View className="bg-tigerBrown h-12 w-12 rounded-full justify-center items-center">
-            <Ionicons name="play" size={24} color="#FFF" />
-          </View>
-        </TouchableOpacity>
 
         {/* Stats Row */}
         <View className="flex-row justify-between mb-8 card-container">
           {/* Stars Card (formerly Trophy) */}
-          <View className="bg-tigerCard w-[31%] p-3 rounded-2xl items-center justify-center shadow-sm">
+          <View className="bg-tigerCard w-[48%] p-3 rounded-2xl items-center justify-center shadow-sm">
             <Ionicons name="star" size={28} color="#FFD700" />
             <Text className="text-tigerBrown text-xs font-bold mt-1">Stars</Text>
             <Text className="text-tigerBrown text-lg font-black">{totalPoints}</Text>
           </View>
 
-          {/* Courses Completed Card (formerly Star) */}
-          <View className="bg-tigerCard w-[31%] p-3 rounded-2xl items-center justify-center shadow-sm">
-            <Ionicons name="ribbon" size={28} color="#5A3E29" />
-            <Text className="text-tigerBrown text-xs font-bold mt-1">Courses</Text>
-            <Text className="text-tigerBrown text-lg font-black">{completedCoursesCount}</Text>
-          </View>
-
           {/* Fire Card */}
-          <View className="bg-tigerCard w-[31%] p-3 rounded-2xl items-center justify-center shadow-sm">
+          <View className="bg-tigerCard w-[48%] p-3 rounded-2xl items-center justify-center shadow-sm">
             <Ionicons name="flame" size={28} color="#FF8C00" />
             <Text className="text-tigerBrown text-xs font-bold mt-1">Streak</Text>
             <Text className="text-tigerBrown text-lg font-black">{streak}</Text>
           </View>
         </View>
 
-        {/* Tasks Section */}
-        <Text className="text-tigerBrown text-xl font-bold mb-4">My Tasks</Text>
-
-        {allTasks.length === 0 ? (
-          <View className="bg-white p-6 rounded-2xl items-center border-2 border-tigerBrown/5 mb-8">
-            <Ionicons name="happy" size={32} color="#5A3E29" className="opacity-50 mb-2" />
-            <Text className="text-tigerBrown font-bold">No tasks assigned yet!</Text>
-            <Text className="text-tigerBrown/60 text-xs">Ask your parent for a mission.</Text>
-          </View>
-        ) : (
-          allTasks.map((task) => (
-            <View key={task.id} className="bg-tigerCard p-5 rounded-2xl flex-row items-center mb-4 shadow-sm border-2 border-tigerBrown/5">
-              <View className="bg-tigerBrown/10 h-10 w-10 rounded-full justify-center items-center mr-4">
-                <Ionicons name="rocket" size={20} color="#5A3E29" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-tigerBrown font-bold text-lg">{task.courseName}</Text>
-                <Text className="text-tigerBrown/70 text-sm font-bold">{task.moduleTitle}</Text>
-              </View>
-
-              {task.status === 'completed' ? (
-                <View className="bg-green-100 p-2 rounded-full">
-                  <Ionicons name="checkmark" size={24} color="green" />
-                </View>
-              ) : (
-                <TouchableOpacity
-                  onPress={() => handleTaskComplete(task.id, task.starsReward || 50)}
-                  disabled={completingTask === task.id}
-                  className="bg-white border-2 border-tigerBrown/20 w-10 h-10 rounded-xl justify-center items-center"
-                >
-                  {completingTask === task.id && <ActivityIndicator color="#5A3E29" />}
-                </TouchableOpacity>
-              )}
+        {/* Assigned Missions Section */}
+        <View className="mb-8">
+          <View className="flex-row items-center mb-4">
+            <View className="bg-tigerOrange h-8 w-8 rounded-full items-center justify-center mr-2">
+              <Ionicons name="flag" size={18} color="white" />
             </View>
-          ))
-        )}
+            <Text className="text-tigerBrown text-xl font-black">Assigned Missions</Text>
+          </View>
+
+          {activeTasks.length === 0 ? (
+            <View className="bg-white p-6 rounded-2xl items-center border-2 border-tigerBrown/5 border-dashed">
+              <Ionicons name="happy-outline" size={40} color="#5A3E29" className="opacity-40 mb-2" />
+              <Text className="text-tigerBrown/60 font-bold text-center">No active missions!</Text>
+              <Text className="text-tigerBrown/40 text-xs text-center mt-1">Ask your parent to assign you one.</Text>
+            </View>
+          ) : (
+            activeTasks.map((task) => (
+              <TouchableOpacity
+                key={task.id}
+                onPress={() => {
+                  // Navigate to the course. We assume the course exists.
+                  // We don't have the color here easily, passing a default.
+                  router.push({
+                    pathname: "/child/course/[id]",
+                    params: {
+                      id: task.courseId,
+                      title: task.courseName,
+                      color: '#FFB74D' // Default
+                    }
+                  });
+                }}
+                className="bg-tigerCard p-5 rounded-2xl mb-3 shadow-md border-b-4 border-tigerOrange active:border-b-0 active:mt-1 active:mb-4"
+              >
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center flex-1">
+                    <View className="bg-tigerBrown/10 h-10 w-10 rounded-full justify-center items-center mr-3">
+                      <Ionicons name="rocket" size={20} color="#5A3E29" />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-tigerBrown font-black text-lg" numberOfLines={1}>{task.courseName}</Text>
+                      <Text className="text-tigerBrown/70 text-sm font-bold">{task.moduleTitle}</Text>
+                    </View>
+                  </View>
+                  <View className="bg-tigerOrange/20 px-3 py-1 rounded-full">
+                    <Text className="text-tigerOrange font-black text-xs">GO</Text>
+                  </View>
+                </View>
+                {/* Optional Task completion Trigger (if needed directly here) - Removing as user wants navigation */}
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+
+        {/* Completed Missions Section */}
+        <View className="mb-6">
+          <View className="flex-row items-center mb-4">
+            <Ionicons name="checkmark-circle" size={24} color="#4CAF50" style={{ marginRight: 8 }} />
+            <Text className="text-tigerBrown text-xl font-black">Mission History</Text>
+          </View>
+
+          {tasks.filter(t => t.status === 'completed').length === 0 ? (
+            <Text className="text-tigerBrown/40 font-bold ml-2">No completed missions yet.</Text>
+          ) : (
+            tasks.filter(t => t.status === 'completed').map((task) => (
+              <View key={task.id} className="bg-green-50 p-4 rounded-xl mb-2 flex-row items-center border border-green-100">
+                <View className="bg-green-100 h-8 w-8 rounded-full justify-center items-center mr-3">
+                  <Ionicons name="trophy" size={16} color="#2E7D32" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-tigerBrown font-bold text-base opacity-80 decoration-slate-500">{task.courseName}</Text>
+                  <Text className="text-tigerBrown/50 text-xs font-bold">{task.moduleTitle}</Text>
+                </View>
+                <Ionicons name="checkmark-done" size={20} color="#2E7D32" />
+              </View>
+            ))
+          )}
+        </View>
 
       </ScrollView>
     </View>

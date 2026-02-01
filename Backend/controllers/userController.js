@@ -1,4 +1,5 @@
 const { firestore } = require('../config/firebase');
+const admin = require('firebase-admin');
 
 exports.getUserProfile = async (req, res) => {
     try {
@@ -73,3 +74,79 @@ exports.getChildren = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+// --- New Course Management Logic ---
+
+// 1. Parent "Purchases" a course (Free)
+exports.purchaseCourse = async (req, res) => {
+    try {
+        const { userId, courseId } = req.body;
+        if (!userId || !courseId) return res.status(400).json({ error: "Missing required fields" });
+
+        const userRef = firestore.collection('users').doc(userId);
+
+        // Use arrayUnion to add unique courseId
+        await userRef.update({
+            purchasedCourses: admin.firestore.FieldValue.arrayUnion(courseId)
+        });
+
+        res.json({ message: "Course purchased successfully" });
+    } catch (error) {
+        console.error("Purchase error:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// 2. Enroll Child (Strictly checks Parent Purchase)
+exports.enrollChild = async (req, res) => {
+    try {
+        const { parentId, childId, courseId } = req.body;
+
+        if (!parentId || !childId || !courseId) return res.status(400).json({ error: "Missing required fields" });
+
+        // A. Verify Parent has purchased the course
+        const parentDoc = await firestore.collection('users').doc(parentId).get();
+        if (!parentDoc.exists) return res.status(404).json({ error: "Parent not found" });
+
+        const parentData = parentDoc.data();
+        const purchased = parentData.purchasedCourses || [];
+
+        // Special case: Allow 'test' courses or check specific IDs if needed, 
+        // but requirement says "atomicity", so strict check:
+        // OPTIONAL: If we want to allow freely available courses without purchase, specific logic goes here.
+        // For now, assuming ALL courses must be purchased first.
+        if (!purchased.includes(courseId)) {
+            return res.status(403).json({ error: "Parent has not purchased this course yet." });
+        }
+
+        // B. Enroll Child (Store in child_progress for cleaner separation, or users)
+        // Using child_progress as it tracks active data
+        const progressRef = firestore.collection('child_progress').doc(childId);
+
+        await progressRef.set({
+            enrolledCourses: admin.firestore.FieldValue.arrayUnion(courseId)
+        }, { merge: true });
+
+        res.json({ message: "Child enrolled successfully", courseId });
+
+    } catch (error) {
+        console.error("Enrollment error:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// 3. Unenroll Child
+exports.unenrollChild = async (req, res) => {
+    try {
+        const { childId, courseId } = req.body;
+        const progressRef = firestore.collection('child_progress').doc(childId);
+
+        await progressRef.update({
+            enrolledCourses: admin.firestore.FieldValue.arrayRemove(courseId)
+        });
+
+        res.json({ message: "Child unenrolled" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}

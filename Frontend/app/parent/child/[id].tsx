@@ -28,7 +28,10 @@ export default function ChildDetailScreen() {
     // Enrollment Management State
     const [enrollmentModalVisible, setEnrollmentModalVisible] = useState(false);
     const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+    const [purchasedCourseIds, setPurchasedCourseIds] = useState<string[]>([]); // New State
     const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
+    const [purchaseModalVisible, setPurchaseModalVisible] = useState(false); // New Modal
+    const [courseToPurchase, setCourseToPurchase] = useState<any>(null); // Track selection
 
     const [assigning, setAssigning] = useState(false);
 
@@ -61,6 +64,12 @@ export default function ChildDetailScreen() {
             setChild(childData);
             setTasks(taskList);
             setSession(sessionData);
+
+            // Fetch Parent Profile to get Purchased Courses
+            if (childData?.parentUid) {
+                const parentProfile = await UserService.getProfile(childData.parentUid);
+                setPurchasedCourseIds(parentProfile?.purchasedCourses || []);
+            }
 
             // Fetch Enrollments
             const enrolledIds = await CourseService.getEnrolledCourses(id as string);
@@ -205,12 +214,31 @@ export default function ChildDetailScreen() {
 
     const handleToggleEnrollment = async (courseId: string) => {
         const isEnrolled = enrolledCourseIds.includes(courseId);
-        const newStatus = !isEnrolled;
+        // Note: CourseService.toggle now expects (parentId, childId, courseId, targetState)
+        // Here targetState is !isEnrolled (we want to flip it)
+        const parentId = child.parentUid;
         try {
-            const updatedList = await CourseService.toggleEnrollment(id as string, courseId, newStatus);
+            const updatedList = await CourseService.toggleEnrollment(parentId, id as string, courseId, !isEnrolled);
             setEnrolledCourseIds(updatedList);
         } catch (e) {
             Alert.alert("Error", "Failed to update enrollment");
+        }
+    };
+
+    const initiatePurchase = (course: any) => {
+        setCourseToPurchase(course);
+        setPurchaseModalVisible(true);
+    };
+
+    const confirmPurchase = async () => {
+        if (!courseToPurchase || !child?.parentUid) return;
+        try {
+            await UserService.purchaseCourse(child.parentUid, courseToPurchase.id);
+            setPurchasedCourseIds(prev => [...prev, courseToPurchase.id]);
+            setPurchaseModalVisible(false);
+            Alert.alert("Success", "Course purchased! You can now enroll your child.");
+        } catch (e: any) {
+            Alert.alert("Error", e.message || "Failed to purchase course");
         }
     };
 
@@ -544,7 +572,7 @@ export default function ChildDetailScreen() {
                         <ScrollView showsVerticalScrollIndicator={false}>
                             <Text className="text-tigerBrown font-bold mb-2 text-lg">Select Course</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
-                                {courses.map((course) => (
+                                {courses.filter(c => enrolledCourseIds.includes(c.id) || c.isTest).map((course) => (
                                     <TouchableOpacity
                                         key={course.id}
                                         onPress={() => handleCourseSelect(course)}
@@ -621,6 +649,7 @@ export default function ChildDetailScreen() {
                         <ScrollView showsVerticalScrollIndicator={false}>
                             {courses.map(course => {
                                 const isEnrolled = enrolledCourseIds.includes(course.id);
+                                const isPurchased = purchasedCourseIds.includes(course.id) || course.isTest; // Always allow test course
                                 const isExpanded = expandedCourseId === course.id;
 
                                 return (
@@ -639,13 +668,31 @@ export default function ChildDetailScreen() {
                                                 </View>
                                             </View>
 
-                                            {/* Enrollment Checkbox (Separate Touch Area) */}
-                                            <TouchableOpacity
-                                                onPress={() => handleToggleEnrollment(course.id)}
-                                                className={`w-8 h-8 rounded-lg items-center justify-center border-2 ${isEnrolled ? 'bg-tigerOrange border-tigerOrange' : 'border-gray-300'}`}
-                                            >
-                                                {isEnrolled && <Ionicons name="checkmark" size={20} color="white" />}
-                                            </TouchableOpacity>
+                                            {/* Enrollment / Purchase Action */}
+                                            {
+                                                isPurchased ? (
+                                                    <TouchableOpacity
+                                                        onPress={() => handleToggleEnrollment(course.id)}
+                                                        className={`w-28 h-10 rounded-xl items-center justify-center border-2 ${isEnrolled ? 'bg-tigerOrange border-tigerOrange' : 'border-gray-300'}`}
+                                                    >
+                                                        {isEnrolled ? (
+                                                            <View className="flex-row items-center">
+                                                                <Ionicons name="checkmark" size={18} color="white" />
+                                                                <Text className="text-white font-bold ml-1">Enrolled</Text>
+                                                            </View>
+                                                        ) : (
+                                                            <Text className="text-gray-400 font-bold">Enroll</Text>
+                                                        )}
+                                                    </TouchableOpacity>
+                                                ) : (
+                                                    <TouchableOpacity
+                                                        onPress={() => initiatePurchase(course)}
+                                                        className="bg-green-500 px-4 py-2 rounded-xl shadow-sm border-b-4 border-green-700 active:border-b-0 active:mt-1 top-0"
+                                                    >
+                                                        <Text className="text-white font-black text-xs uppercase">Get Free</Text>
+                                                    </TouchableOpacity>
+                                                )
+                                            }
                                         </TouchableOpacity>
 
                                         {/* Expandable Description */}
@@ -668,6 +715,41 @@ export default function ChildDetailScreen() {
                     </View>
                 </View>
             </Modal >
+
+            {/* Purchase Confirmation Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={purchaseModalVisible}
+                onRequestClose={() => setPurchaseModalVisible(false)}
+            >
+                <View className="flex-1 justify-center items-center bg-black/60 px-8">
+                    <View className="bg-white p-6 rounded-3xl w-full shadow-lg items-center">
+                        <View className="bg-yellow-100 p-4 rounded-full mb-4">
+                            <Ionicons name="cart" size={40} color="#F59E0B" />
+                        </View>
+                        <Text className="text-center text-tigerBrown text-2xl font-black mb-2">Unlock Course?</Text>
+                        <Text className="text-center text-tigerBrown/60 font-bold mb-6">
+                            Add "{courseToPurchase?.title}" to your library for free? You can then enroll your children.
+                        </Text>
+
+                        <View className="flex-row w-full">
+                            <TouchableOpacity
+                                onPress={() => setPurchaseModalVisible(false)}
+                                className="flex-1 bg-gray-200 py-4 rounded-xl mr-2 items-center"
+                            >
+                                <Text className="font-bold text-gray-500 text-lg">Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={confirmPurchase}
+                                className="flex-1 bg-yellow-400 py-4 rounded-xl ml-2 items-center shadow-md"
+                            >
+                                <Text className="font-bold text-tigerBrown text-lg">Yes, Get It!</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View >
     );
 }
