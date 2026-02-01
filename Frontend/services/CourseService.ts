@@ -12,19 +12,7 @@ export const CourseService = {
                 console.warn("Failed to fetch courses from backend");
             }
 
-            // Test Course Injection
-            const testCourse = {
-                id: 'test_course_id_1',
-                title: 'TEST',
-                description: 'Click to complete instantly!',
-                icon: 'flask',
-                color: '#9C27B0',
-                isTest: true,
-                stars: 50,
-                ageTag: '9+'
-            };
-
-            const allCourses = [...coursesData, testCourse];
+            const allCourses = [...coursesData];
 
             // Centralized Data Enrichment (Age Parsing)
             const enrichedCourses = allCourses.map(course => {
@@ -158,27 +146,51 @@ export const CourseService = {
 
     // --- Enrollment Logic (Mock / Local Storage) ---
 
+    // --- Enrollment Logic (Backend Integrated) ---
+
     async getEnrolledCourses(childId: string): Promise<string[]> {
         try {
-            const json = await AsyncStorage.getItem(`enrollments_${childId}`);
-            return json ? JSON.parse(json) : [];
+            // Fetch from backend via UserService (reusing progress endpoint)
+            const response = await fetch(`${CONFIG.BACKEND_URL}/users/${childId}/progress`);
+            if (response.ok) {
+                const data = await response.json();
+                return data.enrolledCourses || [];
+            }
+            return [];
         } catch (e) {
             console.warn("Failed to load enrollments", e);
             return [];
         }
     },
 
-    async toggleEnrollment(childId: string, courseId: string, isEnrolled: boolean) {
+    // Note: This signature changes slightly in usage, we need parentId now.
+    // For backward compatibility or ease, we might need to pass parentId from UI.
+    // I will update the UI to pass parentId.
+    async toggleEnrollment(parentId: string, childId: string, courseId: string, isEnrolled: boolean) {
         try {
-            const current = await this.getEnrolledCourses(childId);
-            const newSet = new Set(current);
             if (isEnrolled) {
-                newSet.add(courseId);
+                // If currently enrolled (true), we want to TOGGLE to UNENROLL
+                // Wait, the arg isEnrolled usually means "Target State" or "Current State"?
+                // UI Logic: handleToggleEnrollment checks list, if in list -> remove, else -> add.
+                // Let's assume the UI passes the NEW DESIRED STATE?
+                // Actually, looking at previous code: `const newStatus = !isEnrolled; toggleEnrollment(... newStatus)`
+                // So the `isEnrolled` arg IS the target state.
+
+                // However, to keep it clean, let's look at the UI code again.
+                // UI: `const isEnrolled = list.includes(id); toggle(..., !isEnrolled)`
+                // So `isEnrolled` param IS the target state (true = want to enroll).
+                if (isEnrolled) {
+                    await import('./UserService').then(m => m.UserService.enrollChild(parentId, childId, courseId));
+                } else {
+                    await import('./UserService').then(m => m.UserService.unenrollChild(childId, courseId));
+                }
             } else {
-                newSet.delete(courseId);
+                // Target is FALSE (Unenroll)
+                await import('./UserService').then(m => m.UserService.unenrollChild(childId, courseId));
             }
-            await AsyncStorage.setItem(`enrollments_${childId}`, JSON.stringify(Array.from(newSet)));
-            return Array.from(newSet);
+
+            // Return updated list
+            return await this.getEnrolledCourses(childId);
         } catch (e) {
             console.error("Failed to save enrollment", e);
             throw e;

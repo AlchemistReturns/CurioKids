@@ -33,6 +33,12 @@ export default function Courses() {
     const [selectedCourseToAssign, setSelectedCourseToAssign] = useState<any>(null);
     const [userRole, setUserRole] = useState<'parent' | 'child' | null>(null);
 
+    // Purchase State
+    const [purchasedCourseIds, setPurchasedCourseIds] = useState<string[]>([]);
+    const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
+    const [courseToPurchase, setCourseToPurchase] = useState<any>(null);
+    const [parentUid, setParentUid] = useState<string | null>(null);
+
     useEffect(() => {
         fetchCourses();
     }, []);
@@ -68,9 +74,14 @@ export default function Courses() {
             let enrolledIds: string[] = [];
 
             if (role === 'parent' && user) {
-                // Parent: Fetch children for assignment modal
-                const kids = await UserService.getChildren(user.uid);
+                // Parent: Fetch children for assignment modal AND purchased courses
+                const [kids, profile] = await Promise.all([
+                    UserService.getChildren(user.uid),
+                    UserService.getProfile(user.uid)
+                ]);
                 setChildren(kids);
+                setPurchasedCourseIds(profile?.purchasedCourses || []);
+                setParentUid(user.uid);
             } else if (role === 'child' && user) {
                 // Child: Fetch enrollments
                 enrolledIds = await CourseService.getEnrolledCourses(user.uid);
@@ -117,16 +128,36 @@ export default function Courses() {
     const handleAssignToChild = async (childId: string) => {
         if (!selectedCourseToAssign) return;
         try {
-            const enrolledCourses = await CourseService.getEnrolledCourses(childId);
-            const isEnrolled = enrolledCourses.includes(selectedCourseToAssign.id);
+            // Note: CourseService.toggle now requires (parentId, childId, courseId, targetState)
+            // But getEnrolledCourses returns list.
+            // Let's assume we want to ENROLL (Add).
 
-            // Toggle Enrollment
-            await CourseService.toggleEnrollment(childId, selectedCourseToAssign.id, !isEnrolled);
+            // Re-fetch current state to be safe, or just call enrollChild directly?
+            // UserService.enrollChild handles the check.
+            if (parentUid) {
+                await UserService.enrollChild(parentUid, childId, selectedCourseToAssign.id);
+                Alert.alert("Success", "Enrolled successfully!");
+                setAssignModalVisible(false);
+            }
+        } catch (e: any) {
+            Alert.alert("Error", e.message || "Failed to update enrollment");
+        }
+    };
 
-            Alert.alert("Success", !isEnrolled ? "Enrolled successfully!" : "Unenrolled successfully!");
-            setAssignModalVisible(false);
-        } catch (e) {
-            Alert.alert("Error", "Failed to update enrollment");
+    const initiatePurchase = (course: any) => {
+        setCourseToPurchase(course);
+        setPurchaseModalVisible(true);
+    };
+
+    const confirmPurchase = async () => {
+        if (!courseToPurchase || !parentUid) return;
+        try {
+            await UserService.purchaseCourse(parentUid, courseToPurchase.id);
+            setPurchasedCourseIds(prev => [...prev, courseToPurchase.id]);
+            setPurchaseModalVisible(false);
+            Alert.alert("Success", "Course purchased! You can now enroll your children.");
+        } catch (e: any) {
+            Alert.alert("Error", e.message || "Failed to purchase course");
         }
     };
 
@@ -137,7 +168,18 @@ export default function Courses() {
                 if (item.isTest) {
                     handleTestComplete(item);
                 } else {
-                    router.push({ pathname: "/child/course/[id]", params: { id: item.id, title: item.title, color: item.color } });
+                    // Access Control
+                    if (userRole === 'parent') {
+                        const isPurchased = purchasedCourseIds.includes(item.id);
+                        if (isPurchased) {
+                            router.push({ pathname: "/child/course/[id]", params: { id: item.id, title: item.title, color: item.color } });
+                        } else {
+                            initiatePurchase(item);
+                        }
+                    } else {
+                        // Children only see enrolled courses, so they can access.
+                        router.push({ pathname: "/child/course/[id]", params: { id: item.id, title: item.title, color: item.color } });
+                    }
                 }
             }}
         >
@@ -175,19 +217,28 @@ export default function Courses() {
                 <View className="mt-4 flex-row items-center justify-between">
                     <View className="flex-row items-center">
                         <Text className="text-tigerOrange font-black mr-1 text-base">
-                            {item.isTest ? "Complete Now" : "Start Learning"}
+                            {item.isTest ? "Complete Now" : (userRole === 'parent' ? "Check Course Contents" : "Start Learning")}
                         </Text>
                         <Ionicons name="arrow-forward" size={18} color="#FF6E4F" />
                     </View>
 
                     {/* Assign Button for Parents */}
                     {userRole === 'parent' && (
-                        <TouchableOpacity
-                            onPress={() => openAssignModal(item)}
-                            className="bg-tigerYellow px-4 py-2 rounded-xl border border-tigerOrange ml-2"
-                        >
-                            <Text className="text-tigerBrown font-bold text-xs">Enroll Child</Text>
-                        </TouchableOpacity>
+                        purchasedCourseIds.includes(item.id) || item.isTest ? (
+                            <TouchableOpacity
+                                disabled={true}
+                                className="bg-yellow-200 px-4 py-2 rounded-xl border-2 border-yellow-400 ml-2"
+                            >
+                                <Text className="text-yellow-800 font-bold text-xs uppercase">Purchased</Text>
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity
+                                onPress={() => initiatePurchase(item)}
+                                className="bg-green-500 px-4 py-2 rounded-xl border-b-4 border-green-700 ml-2"
+                            >
+                                <Text className="text-white font-black text-xs uppercase">Get Free</Text>
+                            </TouchableOpacity>
+                        )
                     )}
                 </View>
             </View>
@@ -355,6 +406,41 @@ export default function Courses() {
                                 </Text>
                             )}
                         </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Purchase Confirmation Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={purchaseModalVisible}
+                onRequestClose={() => setPurchaseModalVisible(false)}
+            >
+                <View className="flex-1 justify-center items-center bg-black/60 px-8">
+                    <View className="bg-white p-6 rounded-3xl w-full shadow-lg items-center">
+                        <View className="bg-yellow-100 p-4 rounded-full mb-4">
+                            <Ionicons name="cart" size={40} color="#F59E0B" />
+                        </View>
+                        <Text className="text-center text-tigerBrown text-2xl font-black mb-2">Unlock Course?</Text>
+                        <Text className="text-center text-tigerBrown/60 font-bold mb-6">
+                            Add "{courseToPurchase?.title}" to your library for free?
+                        </Text>
+
+                        <View className="flex-row w-full">
+                            <TouchableOpacity
+                                onPress={() => setPurchaseModalVisible(false)}
+                                className="flex-1 bg-gray-200 py-4 rounded-xl mr-2 items-center"
+                            >
+                                <Text className="font-bold text-gray-500 text-lg">Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={confirmPurchase}
+                                className="flex-1 bg-yellow-400 py-4 rounded-xl ml-2 items-center shadow-md"
+                            >
+                                <Text className="font-bold text-tigerBrown text-lg">Yes, Get It!</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>

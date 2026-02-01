@@ -10,6 +10,17 @@ exports.assignTask = async (req, res) => {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
+        // 0. Verify Enrollment (Atomicity Check)
+        const progressDoc = await firestore.collection('child_progress').doc(childId).get();
+        if (!progressDoc.exists) {
+            return res.status(404).json({ error: "Child progress record not found." });
+        }
+
+        const enrolledCourses = progressDoc.data().enrolledCourses || [];
+        if (!enrolledCourses.includes(courseId) && courseId !== 'test_course_id_1') { // Allow test course
+            return res.status(403).json({ error: "Child is not enrolled in this course." });
+        }
+
         const taskData = {
             parentId,
             childId,
