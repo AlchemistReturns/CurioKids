@@ -1,10 +1,15 @@
 import { Stack } from "expo-router";
 import "./globals.css";
-import { SessionProvider } from "../context/SessionContext";
+import { SessionProvider, useSession } from "../context/SessionContext";
+import { TimeoutScreen } from "../components/TimeoutScreen";
+import { View } from "react-native";
 
-export default function RootLayout() {
+// Separate component to safely use the hook
+function AppLayout() {
+    const { isTimeout } = useSession();
+
     return (
-        <SessionProvider>
+        <View style={{ flex: 1 }}>
             <Stack
                 screenOptions={{
                     headerShown: false,
@@ -13,6 +18,15 @@ export default function RootLayout() {
                     },
                 }}
             />
+            {isTimeout && <TimeoutScreen />}
+        </View>
+    );
+}
+
+export default function RootLayout() {
+    return (
+        <SessionProvider>
+            <AppLayout />
         </SessionProvider>
     );
 }

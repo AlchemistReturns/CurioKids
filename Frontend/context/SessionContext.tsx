@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
+import { router } from 'expo-router';
 import { SessionService } from '../services/SessionService';
 import { AuthService } from '../services/AuthService';
 import { UserService } from '../services/UserService';
@@ -148,6 +149,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setIsActive(false);
         lastBackgroundRef.current = null;
         await AuthService.logout();
+        // Force navigation to login screen
+        router.replace('/login');
     };
 
     const loadLocalState = async () => {
