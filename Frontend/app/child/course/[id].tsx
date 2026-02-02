@@ -4,6 +4,8 @@ import { CourseService } from "../../../services/CourseService";
 import { UserService } from "../../../services/UserService";
 import { AuthService } from "../../../services/AuthService";
 import React, { useEffect, useState } from "react";
+import { Asset } from 'expo-asset'; // Added Asset for caching
+import { PLANET_IMAGES } from "@/constants/PlanetImages"; // Added Planet Config
 import {
     ActivityIndicator,
     ScrollView,
@@ -36,8 +38,34 @@ export default function CourseDetailsScreen() {
         }
     }, [id]);
 
+    const preloadPlanetImages = async () => {
+        try {
+            console.log("Starting Planet Explorer Asset Caching...");
+            const images = Object.values(PLANET_IMAGES);
+
+            // Explicitly ensure critical assets are cached as requested
+            // (They are in PLANET_IMAGES, but being explicit in logs helps verification)
+            // Lumo Astronaut & Space Background
+
+            const cacheTasks = images.map(image => {
+                return Asset.fromModule(image).downloadAsync();
+            });
+
+            await Promise.all(cacheTasks);
+            console.log("Planet Explorer assets (including Lumo & BG) cached successfully!");
+        } catch (error) {
+            console.error("Error caching planet images:", error);
+        }
+    };
+
     const loadData = async () => {
         try {
+            // CACHING LOGIC FOR PLANET EXPLORER
+            if (id === 'planet_explorer') {
+                // We don't await this to avoid blocking the UI, let it run in background
+                preloadPlanetImages();
+            }
+
             const user = await AuthService.getCurrentUser();
             // Fetch modules
             const modulesData = await CourseService.getModules(id as string);
@@ -246,4 +274,3 @@ export default function CourseDetailsScreen() {
         </View>
     );
 }
-

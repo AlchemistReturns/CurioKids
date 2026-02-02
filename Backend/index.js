@@ -40,7 +40,7 @@ app.get('/', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`-----------------------------------------------`);
     // Verified IP address from ipconfig
-    const localIP = '192.168.31.201';
+    const localIP = '192.168.0.114';
     console.log(`Server is running!`);
     console.log(`Local Access: http://localhost:${PORT}`);
     console.log(`Phone Access: http://${localIP}:${PORT}`);

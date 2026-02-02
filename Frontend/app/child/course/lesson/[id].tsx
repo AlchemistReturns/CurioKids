@@ -21,6 +21,8 @@ import { ChildProgressService } from "../../../../services/ChildProgressService"
 import { CourseService } from "../../../../services/CourseService";
 import { useSession } from "../../../../context/SessionContext";
 import { CURRENCY_IMAGES } from "@/constants/CurrencyImages"; // Added Import for Lumo Assets
+import { PLANET_IMAGES } from "@/constants/PlanetImages";
+
 
 // --- 🔊 AUDIO MANAGER ---
 import { audioManager } from "@/components/LessonEngine/AudioManager";
@@ -65,9 +67,12 @@ export default function LessonScreen() {
     const shakeAnim = useRef(new Animated.Value(0)).current;
 
     // Speak the question when lesson loads (for logic games)
-    const speakCurrentQuestion = () => {
+    // Speak the question or content
+    const speakLessonContent = () => {
         if (lesson?.question) {
             audioManager.speakQuestion(lesson.question);
+        } else if (lesson?.content) {
+            audioManager.speakQuestion(lesson.content);
         }
     };
 
@@ -83,14 +88,16 @@ export default function LessonScreen() {
         };
     }, [id]);
 
-    // Auto-speak question when a logic game lesson loads
+    // Auto-speak when lesson loads
     useEffect(() => {
         if (lesson && !loading) {
             const isLogicGame = ['logic_pattern', 'logic_sorting', 'logic_sequencing', 'logic_drag'].includes(lesson.type);
-            if (isLogicGame && lesson.question) {
+            const isStory = ['story', 'story_intro', 'story_outro'].includes(lesson.type);
+
+            if ((isLogicGame && lesson.question) || (isStory && lesson.content)) {
                 // Short delay to let the UI render first
                 const timer = setTimeout(() => {
-                    audioManager.speakQuestion(lesson.question);
+                    speakLessonContent();
                 }, 500);
                 return () => clearTimeout(timer);
             }
@@ -391,7 +398,7 @@ export default function LessonScreen() {
 
                     // Check if item is a valid image key
                     // @ts-ignore
-                    const imageSource = CURRENCY_IMAGES[item];
+                    const imageSource = (courseId === 'planet_explorer') ? PLANET_IMAGES[item] : CURRENCY_IMAGES[item];
 
                     if (isCorrect && !isTarget) return <View key={index} className="w-40 h-40 opacity-20 bg-gray-200 rounded-xl m-2" />;
 
@@ -573,7 +580,7 @@ export default function LessonScreen() {
                         </View>
                         {/* Repeat Question Button */}
                         <TouchableOpacity
-                            onPress={speakCurrentQuestion}
+                            onPress={speakLessonContent}
                             className="bg-white/30 p-2.5 rounded-full"
                         >
                             <Ionicons name="volume-high" size={24} color="#5D4037" />
@@ -656,6 +663,7 @@ export default function LessonScreen() {
                 default: return 'bg-red-50';
             }
         }
+        if (courseId === 'planet_explorer') return 'bg-slate-900'; // Space dark background
         return isLogicLandCourse ? 'bg-purple-50' : 'bg-gray-50';
     };
 
@@ -666,11 +674,26 @@ export default function LessonScreen() {
                     <TouchableOpacity onPress={() => router.back()} className="mr-4">
                         <Ionicons name="close" size={28} color="#333" />
                     </TouchableOpacity>
-                    <Text className="text-xl font-bold flex-1 text-center mr-8 text-primary">{lesson.title}</Text>
+                    <Text className="text-xl font-bold flex-1 text-center text-primary">{lesson.title}</Text>
+                    <TouchableOpacity onPress={speakLessonContent} className="items-center justify-center p-2 rounded-full bg-gray-100">
+                        <Ionicons name="volume-high" size={24} color="#333" />
+                    </TouchableOpacity>
                 </View>
 
                 <View className={`flex-1 items-center justify-center p-8 ${getModuleBackgroundColor()}`}>
                     {isLogicLandCourse && <TigerMascot mood={lesson.type === 'story_outro' ? 'success' : 'happy'} size="medium" />}
+
+                    {/* Planet Explorer Image Support */}
+                    {courseId === 'planet_explorer' && lesson.data?.image && (
+                        <View className="mb-8 items-center justify-center w-64 h-64">
+                            <Image
+                                source={PLANET_IMAGES[lesson.data.image]}
+                                className="w-full h-full"
+                                resizeMode="contain"
+                            />
+                        </View>
+                    )}
+
                     <View className={`bg-white p-6 rounded-2xl shadow-sm ${isLogicLandCourse ? 'mt-8 border border-purple-100' : isBalanceBuddiesCourse ? 'border border-red-100' : 'border border-gray-100'}`}>
                         <Text className="text-2xl text-center text-gray-800 leading-9">{lesson.content}</Text>
                     </View>
