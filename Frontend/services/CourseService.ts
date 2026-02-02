@@ -163,37 +163,6 @@ export const CourseService = {
         }
     },
 
-    // Note: This signature changes slightly in usage, we need parentId now.
-    // For backward compatibility or ease, we might need to pass parentId from UI.
-    // I will update the UI to pass parentId.
-    async toggleEnrollment(parentId: string, childId: string, courseId: string, isEnrolled: boolean) {
-        try {
-            if (isEnrolled) {
-                // If currently enrolled (true), we want to TOGGLE to UNENROLL
-                // Wait, the arg isEnrolled usually means "Target State" or "Current State"?
-                // UI Logic: handleToggleEnrollment checks list, if in list -> remove, else -> add.
-                // Let's assume the UI passes the NEW DESIRED STATE?
-                // Actually, looking at previous code: `const newStatus = !isEnrolled; toggleEnrollment(... newStatus)`
-                // So the `isEnrolled` arg IS the target state.
-
-                // However, to keep it clean, let's look at the UI code again.
-                // UI: `const isEnrolled = list.includes(id); toggle(..., !isEnrolled)`
-                // So `isEnrolled` param IS the target state (true = want to enroll).
-                if (isEnrolled) {
-                    await import('./UserService').then(m => m.UserService.enrollChild(parentId, childId, courseId));
-                } else {
-                    await import('./UserService').then(m => m.UserService.unenrollChild(childId, courseId));
-                }
-            } else {
-                // Target is FALSE (Unenroll)
-                await import('./UserService').then(m => m.UserService.unenrollChild(childId, courseId));
-            }
-
-            // Return updated list
-            return await this.getEnrolledCourses(childId);
-        } catch (e) {
-            console.error("Failed to save enrollment", e);
-            throw e;
-        }
-    }
+    // toggleEnrollment removed to avoid circular dependency with UserService.
+    // Logic moved to ChildDetailScreen.tsx using UserService directly.
 };

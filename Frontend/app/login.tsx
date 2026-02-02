@@ -33,6 +33,26 @@ const LoginScreen = () => {
 
         try {
             const user = await AuthService.login(email, password);
+
+            // Check Session Limits BEFORE logging in context (only for children)
+            if (user.role === 'child') {
+                try {
+                    // Dynamically import to avoid circular dependencies if any
+                    const { SessionService } = require('../services/SessionService');
+                    const sessionData = await SessionService.getSession(user.uid);
+
+                    if (sessionData && sessionData.timeLeft <= 0) {
+                        setLoading(false);
+                        // Don't proceed. Show visual feedback.
+                        setError("Tell your parent to add more time for you!");
+                        return;
+                    }
+                } catch (sessionError) {
+                    // If offline or fails, default to allowing login (safety fallback)
+                    console.warn("Session check failed, allowing login:", sessionError);
+                }
+            }
+
             await login(user);
             router.replace("/(tabs)/dashboard");
         } catch (err: any) {

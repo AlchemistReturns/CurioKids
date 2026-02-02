@@ -214,14 +214,32 @@ export default function ChildDetailScreen() {
 
     const handleToggleEnrollment = async (courseId: string) => {
         const isEnrolled = enrolledCourseIds.includes(courseId);
-        // Note: CourseService.toggle now expects (parentId, childId, courseId, targetState)
-        // Here targetState is !isEnrolled (we want to flip it)
         const parentId = child.parentUid;
+
+        // Optimistic Update
+        const optimisticList = isEnrolled
+            ? enrolledCourseIds.filter(id => id !== courseId)
+            : [...enrolledCourseIds, courseId];
+
+        setEnrolledCourseIds(optimisticList);
+
         try {
-            const updatedList = await CourseService.toggleEnrollment(parentId, id as string, courseId, !isEnrolled);
-            setEnrolledCourseIds(updatedList);
-        } catch (e) {
-            Alert.alert("Error", "Failed to update enrollment");
+            if (isEnrolled) {
+                // Currently enrolled, so UNENROLL
+                await UserService.unenrollChild(id as string, courseId);
+            } else {
+                // Currently not enrolled, so ENROLL
+                await UserService.enrollChild(parentId, id as string, courseId);
+            }
+
+            // Background verification (optional: only update if data changed meaningfully)
+            // const updatedList = await CourseService.getEnrolledCourses(id as string);
+            // if (updatedList && updatedList.length > 0) setEnrolledCourseIds(updatedList);
+
+        } catch (e: any) {
+            // Revert on error
+            setEnrolledCourseIds(enrolledCourseIds);
+            Alert.alert("Error", e.message || "Failed to update enrollment");
         }
     };
 
