@@ -1,42 +1,95 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { Asset } from 'expo-asset';
+import * as Speech from 'expo-speech';
 import { useSession } from '../context/SessionContext';
 
 const { width, height } = Dimensions.get('window');
 
+const FALLBACK_LOGOUT_DELAY = 10000; // 10 seconds fallback if video fails
+
 export const TimeoutScreen = () => {
-    const video = React.useRef<Video>(null);
+    const video = useRef<Video>(null);
     const [isReady, setIsReady] = useState(false);
+    const hasLoggedOut = useRef(false);
+    const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const { logout } = useSession();
 
+    const safeLogout = async () => {
+        if (hasLoggedOut.current) return;
+        hasLoggedOut.current = true;
+        console.log('[TimeoutScreen] Triggering logout...');
+
+        if (fallbackTimer.current) {
+            clearTimeout(fallbackTimer.current);
+            fallbackTimer.current = null;
+        }
+
+        Speech.stop();
+
+        try {
+            await logout();
+        } catch (e) {
+            console.error('[TimeoutScreen] Logout failed:', e);
+        }
+    };
+
     useEffect(() => {
+        fallbackTimer.current = setTimeout(() => {
+            console.warn('[TimeoutScreen] Fallback timer triggered — forcing logout');
+            safeLogout();
+        }, FALLBACK_LOGOUT_DELAY);
+
+        // Speak the message after a short delay
+        const speechTimer = setTimeout(() => {
+            Speech.speak('Lumo is tired. Lumo is going to sleep.', {
+                language: 'en-US',
+                pitch: 1.1,
+                rate: 0.85,
+            });
+        }, 800);
+
         const cacheVideo = async () => {
             try {
-                // Preload/Cache the video asset
                 const asset = Asset.fromModule(require('../assets/lumo_tired.mp4'));
                 await asset.downloadAsync();
                 setIsReady(true);
             } catch (e) {
-                console.warn("Failed to cache video:", e);
-                // Even if cache fails, we try to render
+                console.warn('[TimeoutScreen] Failed to cache video:', e);
                 setIsReady(true);
             }
         };
 
         cacheVideo();
+
+        return () => {
+            if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+            clearTimeout(speechTimer);
+            Speech.stop();
+        };
     }, []);
 
     const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
         if (status.isLoaded && status.didJustFinish) {
-            // Video finished, logout the child
-            logout();
+            safeLogout();
         }
     };
 
+    const handleVideoError = (error: string) => {
+        console.error('[TimeoutScreen] Video error:', error);
+        setTimeout(() => safeLogout(), 3000);
+    };
+
     if (!isReady) {
-        return <View style={styles.container} />;
+        return (
+            <View style={styles.container}>
+                <View style={styles.overlay}>
+                    <Text style={styles.title}>Time's Up!</Text>
+                    <Text style={styles.subtitle}>Ask your parent for more time.</Text>
+                </View>
+            </View>
+        );
     }
 
     return (
@@ -47,9 +100,10 @@ export const TimeoutScreen = () => {
                 source={require('../assets/lumo_tired.mp4')}
                 resizeMode={ResizeMode.COVER}
                 shouldPlay
-                isLooping={false} // Run once
+                isLooping={false}
                 isMuted={false}
                 onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+                onError={handleVideoError}
             />
             <View style={styles.overlay}>
                 <Text style={styles.title}>Time's Up!</Text>
@@ -70,6 +124,7 @@ const styles = StyleSheet.create({
         zIndex: 9999,
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden',
     },
     video: {
         width: width,

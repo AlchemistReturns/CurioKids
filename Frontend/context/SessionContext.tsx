@@ -37,6 +37,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const [isActive, setIsActive] = useState(true);
     const [isBusy, setIsBusy] = useState(false);
     const [loginGrace, setLoginGrace] = useState(false); // Grace period to prevent timeout flash on login
+    const [isTimeout, setIsTimeout] = useState(false); // Explicit timeout state
 
     const [uid, setUid] = useState<string | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
@@ -127,7 +128,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setIsInitialized(false); // Reset Init
         // Reset state for new user
         isFirstFetch.current = true;
-        setTimeLeft(-1); // Sentinal for 'Loading'
+        setTimeLeft(-1); // Sentinel for 'Loading'
+        setIsActive(true); // Ensure timer will start after cloud fetch
+        setIsTimeout(false); // Clear any previous timeout state
 
         // console.log('[SessionContext] Fetching Cloud Session...');
         await fetchCloudSession(user.uid);
@@ -145,8 +148,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = async () => {
-        setUid(null);
+        console.log('[SessionContext] Logging out...');
+        setIsTimeout(false); // Clear timeout state first to unmount TimeoutScreen
         setIsActive(false);
+        setTimeLeft(DEFAULT_SESSION_LIMIT); // Reset timer for next session
+        setTotalUsageToday(0);
+        setUid(null);
         lastBackgroundRef.current = null;
         await AuthService.logout();
         // Force navigation to login screen
@@ -229,10 +236,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    // Detect when timeLeft hits zero and set isTimeout
+    useEffect(() => {
+        if (isInitialized && uid && timeLeft === 0 && role === 'child' && !isBusy && !loginGrace && isActive) {
+            console.log('[SessionContext] Timer reached zero — triggering timeout');
+            setIsTimeout(true);
+            setIsActive(false); // Stop the timer
+        }
+    }, [timeLeft, isInitialized, uid, role, isBusy, loginGrace, isActive]);
+
     // Timer Loop: Decrement & Increment Usage (Local)
     useEffect(() => {
         let interval: ReturnType<typeof setInterval>;
-        if (isInitialized && isActive && role === 'child') {
+        if (isInitialized && isActive && role === 'child' && timeLeft > 0) {
             // console.log('[SessionContext] Timer Started for Child');
             interval = setInterval(() => {
                 // console.log('[SessionContext] Tick', timeLeftRef.current);
@@ -251,7 +267,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             }, 1000);
         }
         return () => clearInterval(interval);
-    }, [isActive, role, isInitialized]);
+    }, [isActive, role, isInitialized, timeLeft > 0]);
 
     // Sync Loop: Push Local State to Cloud (Every 20s)
     useEffect(() => {
@@ -325,8 +341,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
                 role,
                 isActive,
                 isBusy,
-                // Accurate Timeout: Must be initialized, logged in, time 0, child role, not busy, and NOT in grace period
-                isTimeout: isInitialized && !!uid && timeLeft === 0 && role === 'child' && !isBusy && !loginGrace,
+                // isTimeout is now a dedicated state variable, set when timeLeft reaches 0
+                isTimeout,
                 setRole: (r) => {
                     setRole(r);
                     AsyncStorage.setItem('session_role', r);
