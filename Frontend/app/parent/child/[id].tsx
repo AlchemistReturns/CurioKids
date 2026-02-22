@@ -113,17 +113,18 @@ export default function ChildDetailScreen() {
         setRefreshingSession(true);
         try {
             const action = actionFn();
-            // Optimistic Update (Guess)
+            // Optimistic Update (local display only)
             if (action.type === 'add_time') {
                 setSession({ ...session, timeLeft: Math.max(0, session.timeLeft + (action.value * 60)), isActive: true });
             } else if (action.type === 'set_active') {
                 setSession({ ...session, isActive: action.value });
+            } else if (action.type === 'reset') {
+                setSession({ ...session, timeLeft: action.value, isActive: true });
             }
 
             let finalAction = action;
 
             // MERGE Logic: Check if there's already a pending action of the same type
-            // This prevents rapid clicks from overwriting previous ones
             if (session.pendingAction && session.pendingAction.type === 'add_time' && action.type === 'add_time') {
                 console.log('Merging Actions:', session.pendingAction.value, '+', action.value);
                 finalAction = {
@@ -132,6 +133,8 @@ export default function ChildDetailScreen() {
                 };
             }
 
+            // Only write pendingAction + lastUpdatedBy to cloud
+            // The child will process the pendingAction on its next poll and apply the time change
             await SessionService.updateSession(id as string, {
                 pendingAction: { ...finalAction, id: Math.random().toString(36).substring(7) },
                 lastUpdatedBy: 'parent'
