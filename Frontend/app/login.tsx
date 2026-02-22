@@ -34,21 +34,25 @@ const LoginScreen = () => {
         try {
             const user = await AuthService.login(email, password);
 
-            // Check Session Limits BEFORE logging in context (only for children)
+            // For children, check if they have time remaining
             if (user.role === 'child') {
                 try {
-                    // Dynamically import to avoid circular dependencies if any
                     const { SessionService } = require('../services/SessionService');
                     const sessionData = await SessionService.getSession(user.uid);
 
-                    if (sessionData && sessionData.timeLeft <= 0) {
+                    // Check if there's a pending action that would give time back
+                    const hasPendingTime = sessionData?.pendingAction &&
+                        (sessionData.pendingAction.type === 'add_time' || sessionData.pendingAction.type === 'reset');
+
+                    if (sessionData && sessionData.timeLeft <= 0 && !sessionData.isActive && !hasPendingTime) {
+                        // Only block login if session is exhausted, inactive, AND no pending time actions
                         setLoading(false);
-                        // Don't proceed. Show visual feedback.
-                        setError("Tell your parent to add more time for you!");
+                        setError("Your time is up! Ask your parent to add more time for you.");
+                        await AuthService.logout();
                         return;
                     }
                 } catch (sessionError) {
-                    // If offline or fails, default to allowing login (safety fallback)
+                    // If offline or session check fails, allow login to proceed
                     console.warn("Session check failed, allowing login:", sessionError);
                 }
             }
