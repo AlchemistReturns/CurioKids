@@ -176,18 +176,7 @@ export default function ChildProfile({ user }: { user: User }) {
           </View>
         )}
 
-        {/* Account Actions */}
-        <View className="mb-8">
-          <TouchableOpacity className="flex-row items-center justify-between bg-tigerCard p-4 rounded-2xl mb-3 border-2 border-tigerBrown/5">
-            <View className="flex-row items-center">
-              <View className="bg-white p-2 rounded-xl mr-3">
-                <Ionicons name="settings-outline" size={24} color="#5A3E29" />
-              </View>
-              <Text className="text-tigerBrown font-bold text-lg">App Settings</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#5A3E29" />
-          </TouchableOpacity>
-        </View>
+
 
       </ScrollView>
     </View>
