@@ -397,8 +397,13 @@ exports.getFriendsLeaderboard = async (req, res) => {
         const childrenArrays = await Promise.all(childrenPromises);
         const allChildren = childrenArrays.flat();
 
+        // Filter out children whose statsVisibility is 'private'
+        const visibleChildren = allChildren.filter(child =>
+            !child.statsVisibility || child.statsVisibility !== 'private'
+        );
+
         // Sort by totalPoints
-        const sorted = allChildren.sort((a, b) =>
+        const sorted = visibleChildren.sort((a, b) =>
             (b.totalPoints || 0) - (a.totalPoints || 0)
         );
 

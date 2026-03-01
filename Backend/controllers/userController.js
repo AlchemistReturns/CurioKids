@@ -28,16 +28,39 @@ exports.getLeaderboard = async (req, res) => {
         const snapshot = await firestore.collection('users')
             .where('role', '==', 'child')
             .orderBy('totalPoints', 'desc')
-            .limit(20)
+            .limit(50)
             .get();
 
-        const leaderboard = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
+        // Filter: only show children whose statsVisibility is 'everyone' (or not set, defaults to visible)
+        const leaderboard = snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(child => !child.statsVisibility || child.statsVisibility === 'everyone')
+            .slice(0, 20);
 
         res.json(leaderboard);
     } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.updateStatsVisibility = async (req, res) => {
+    try {
+        const { childId, visibility } = req.body;
+        if (!childId || !visibility) {
+            return res.status(400).json({ error: 'childId and visibility are required' });
+        }
+        const validOptions = ['everyone', 'friends', 'private'];
+        if (!validOptions.includes(visibility)) {
+            return res.status(400).json({ error: 'visibility must be everyone, friends, or private' });
+        }
+
+        await firestore.collection('users').doc(childId).update({
+            statsVisibility: visibility
+        });
+
+        res.json({ message: 'Visibility updated', childId, visibility });
+    } catch (error) {
+        console.error('Update Stats Visibility Error:', error);
         res.status(500).json({ error: error.message });
     }
 };
