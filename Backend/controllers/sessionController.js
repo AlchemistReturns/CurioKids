@@ -45,6 +45,35 @@ const sessionController = {
                         }
                     }
 
+                    // UPDATE STREAK in child_progress
+                    try {
+                        const progressRef = firestore.collection('child_progress').doc(uid);
+                        const progressDoc = await progressRef.get();
+                        const progressData = progressDoc.exists ? progressDoc.data() : {};
+
+                        let newStreak = 1;
+                        if (data.lastResetDate) {
+                            const lastDate = new Date(data.lastResetDate);
+                            const yesterday = new Date(todayStr);
+                            yesterday.setDate(yesterday.getDate() - 1);
+                            const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+                            if (data.lastResetDate === yesterdayStr) {
+                                // Consecutive day — increment streak
+                                newStreak = (progressData.streak || 0) + 1;
+                            }
+                            // else: missed a day — reset to 1
+                        }
+
+                        await progressRef.set({
+                            streak: newStreak,
+                            lastActiveDate: todayStr
+                        }, { merge: true });
+                        console.log(`Updated streak for ${uid}: ${newStreak}`);
+                    } catch (err) {
+                        console.error("Failed to update streak:", err);
+                    }
+
                     // Optional: Reset timeLeft to default allowance? Let's say yes for "Fresh Start"
                     sessionData = {
                         ...data,
@@ -58,8 +87,18 @@ const sessionController = {
                     sessionData = data;
                 }
             } else {
-                // Create New
+                // Create New session — start streak at 1
                 await sessionRef.set(sessionData);
+
+                try {
+                    const progressRef = firestore.collection('child_progress').doc(uid);
+                    await progressRef.set({
+                        streak: 1,
+                        lastActiveDate: todayStr
+                    }, { merge: true });
+                } catch (err) {
+                    console.error("Failed to init streak:", err);
+                }
             }
 
             res.json(sessionData);

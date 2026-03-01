@@ -10,4 +10,8 @@ router.get('/usage', analyticsController.getUsageStats);
 // GET /api/analytics/courses?uid=USER_ID
 router.get('/courses', analyticsController.getCourseStats);
 
+// Get Child Rank
+// GET /api/analytics/rank?uid=USER_ID
+router.get('/rank', analyticsController.getRank);
+
 module.exports = router;

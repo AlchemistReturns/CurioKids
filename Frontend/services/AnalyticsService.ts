@@ -22,5 +22,17 @@ export const AnalyticsService = {
             console.error('AnalyticsService Error:', error);
             throw error;
         }
+    },
+
+    async getRank(uid: string) {
+        try {
+            const response = await fetch(`${CONFIG.BACKEND_URL}/analytics/rank?uid=${uid}`);
+            if (!response.ok) throw new Error('Failed to fetch rank');
+            const data = await response.json();
+            return data.rank;
+        } catch (error) {
+            console.error('AnalyticsService Rank Error:', error);
+            return 0;
+        }
     }
 };

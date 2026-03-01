@@ -14,6 +14,7 @@ export default function AnalyticsScreen() {
     const [courseData, setCourseData] = useState<any>(null);
     const [childData, setChildData] = useState<any>(null);
     const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
+    const [childRank, setChildRank] = useState<number>(0);
 
     useEffect(() => {
         loadData();
@@ -25,14 +26,16 @@ export default function AnalyticsScreen() {
             return;
         }
         try {
-            const [usage, courses, child] = await Promise.all([
+            const [usage, courses, child, rank] = await Promise.all([
                 AnalyticsService.getUsageStats(childId as string),
                 AnalyticsService.getCourseStats(childId as string),
-                UserService.getProfile(childId as string)
+                UserService.getProfile(childId as string),
+                AnalyticsService.getRank(childId as string)
             ]);
             setUsageData(usage);
             setCourseData(courses);
             setChildData(child);
+            setChildRank(rank || 0);
         } catch (error) {
             console.error(error);
         } finally {
@@ -131,7 +134,7 @@ export default function AnalyticsScreen() {
                                 </View>
                                 <View style={[styles.quickStatCard, { backgroundColor: '#E0E7FF' }]}>
                                     <Ionicons name="ribbon" size={28} color="#6366F1" />
-                                    <Text style={styles.quickStatValue}>#{childData?.rank || '-'}</Text>
+                                    <Text style={styles.quickStatValue}>#{childRank || '-'}</Text>
                                     <Text style={styles.quickStatLabel}>Rank</Text>
                                 </View>
                             </View>
