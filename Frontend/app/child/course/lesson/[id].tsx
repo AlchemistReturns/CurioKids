@@ -19,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthService } from "../../../../services/AuthService";
 import { ChildProgressService } from "../../../../services/ChildProgressService";
 import { CourseService } from "../../../../services/CourseService";
+import { TaskService } from "../../../../services/TaskService";
 import { useSession } from "../../../../context/SessionContext";
 import { CURRENCY_IMAGES } from "@/constants/CurrencyImages"; // Added Import for Lumo Assets
 import { PLANET_IMAGES } from "@/constants/PlanetImages";
@@ -208,9 +209,6 @@ export default function LessonScreen() {
             const cId = courseId as string;
             const mId = moduleId as string;
 
-            // Debug Alert
-            // Alert.alert("Debug", `Navigating from ${cId} / ${mId} / ${id}`);
-
             // 1. Get all lessons in current module to find next one
             const lessons = await CourseService.getLessons(cId, mId);
             const sortedLessons = lessons.sort((a: any, b: any) => a.order - b.order);
@@ -223,6 +221,23 @@ export default function LessonScreen() {
                     params: { courseId: cId, moduleId: mId, id: nextLesson.id, title: nextLesson.title }
                 });
                 return;
+            }
+
+            // MODULE COMPLETE — auto-complete any matching assigned task
+            try {
+                const user = await AuthService.getCurrentUser();
+                if (user) {
+                    const tasks = await TaskService.getChildTasks(user.uid);
+                    const matchingTask = tasks.find(
+                        (t: any) => t.status === 'pending' && t.courseId === cId && t.moduleId === mId
+                    );
+                    if (matchingTask) {
+                        await TaskService.completeTask(matchingTask.id);
+                        console.log(`Auto-completed task ${matchingTask.id} for module ${mId}`);
+                    }
+                }
+            } catch (taskErr) {
+                console.error('Auto-task completion failed (non-critical):', taskErr);
             }
 
             // 2. Next Module
