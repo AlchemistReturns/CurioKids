@@ -118,7 +118,6 @@ export default function ParentProfile({ user }: { user: User }) {
 
         <Text className="text-tigerBrown text-xl font-black mb-4">Account Settings</Text>
         <View className="mb-8">
-          <SettingItem icon="notifications-outline" label="Notifications" subtext="Email & Push alerts" />
           <SettingItem
             icon="lock-closed-outline"
             label="Security"
