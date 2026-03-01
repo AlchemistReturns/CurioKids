@@ -46,31 +46,47 @@ export default function AnalyticsScreen() {
         return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
     };
 
-    const getMaxUsage = () => {
-        if (!usageData || usageData.length === 0) return 3600;
-        const values = usageData.map(d => Number(d.totalUsageToday || 0));
+    const getChartData = () => {
+        const days = viewMode === 'week' ? 7 : 30;
+        const today = new Date();
+        // Build a map of existing data keyed by date string (YYYY-MM-DD)
+        const dataMap: Record<string, any> = {};
+        (usageData || []).forEach((d: any) => {
+            if (d.date) {
+                dataMap[d.date] = d;
+            }
+        });
+
+        // Generate entries for each calendar day in the range, filling gaps with 0
+        const result: any[] = [];
+        for (let i = days - 1; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            if (dataMap[dateStr]) {
+                result.push(dataMap[dateStr]);
+            } else {
+                result.push({ date: dateStr, totalUsageToday: 0 });
+            }
+        }
+        return result;
+    };
+
+    const getMaxUsage = (data: any[]) => {
+        if (!data || data.length === 0) return 3600;
+        const values = data.map((d: any) => Number(d.totalUsageToday || 0));
         return Math.max(...values);
     };
 
-    const getChartData = () => {
-        let data = [...(usageData || [])];
-        if (viewMode === 'week') {
-            data = data.slice(-7);
-        } else {
-            data = data.slice(-30);
-        }
-        return data;
-    };
-
-    const getAverageUsage = () => {
-        if (!usageData || usageData.length === 0) return 0;
-        const total = usageData.reduce((sum, d) => sum + Number(d.totalUsageToday || 0), 0);
-        return Math.floor(total / usageData.length);
+    const getAverageUsage = (data: any[]) => {
+        if (!data || data.length === 0) return 0;
+        const total = data.reduce((sum: number, d: any) => sum + Number(d.totalUsageToday || 0), 0);
+        return Math.floor(total / data.length);
     };
 
     const chartData = getChartData();
-    const maxVal = Math.max(getMaxUsage(), 60);
-    const avgUsage = getAverageUsage();
+    const maxVal = Math.max(getMaxUsage(chartData), 60);
+    const avgUsage = getAverageUsage(chartData);
 
     return (
         <View style={styles.container}>
