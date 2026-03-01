@@ -43,7 +43,7 @@ export default function ChatbotScreen() {
                 body: JSON.stringify({
                     contents,
                     systemInstruction: {
-                        parts: [{ text: 'You are a friendly, helpful AI assistant for kids on the CurioKids learning platform. Keep your answers simple, fun, and age-appropriate. Use emojis occasionally to make the conversation engaging. If asked about inappropriate topics, gently redirect to fun and educational subjects.' }],
+                        parts: [{ text: 'You are a friendly, helpful AI assistant for kids on the CurioKids learning platform. Keep your answers simple, fun, and age-appropriate. Use emojis occasionally to make the conversation engaging. If asked about inappropriate topics, gently redirect to fun and educational subjects. Return raw response without any formatting' }],
                     },
                     generationConfig: {
                         temperature: 0.7,
