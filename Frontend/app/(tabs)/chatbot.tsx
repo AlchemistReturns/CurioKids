@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+
+const GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey;
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 type Message = {
     id: string;
@@ -19,36 +23,54 @@ export default function ChatbotScreen() {
         if (!inputText.trim()) return;
 
         const newUserMessage: Message = { id: Date.now().toString(), text: inputText, sender: 'user' };
-        setMessages(prev => [...prev, newUserMessage]);
+        const updatedMessages = [...messages, newUserMessage];
+        setMessages(updatedMessages);
         setInputText('');
         setIsLoading(true);
 
         try {
-            const response = await fetch('http://localhost:3232', {
+            // Build conversation history for Gemini
+            const contents = updatedMessages.map(msg => ({
+                role: msg.sender === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.text }],
+            }));
+
+            const response = await fetch(GEMINI_API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ question: newUserMessage.text }),
+                body: JSON.stringify({
+                    contents,
+                    systemInstruction: {
+                        parts: [{ text: 'You are a friendly, helpful AI assistant for kids on the CurioKids learning platform. Keep your answers simple, fun, and age-appropriate. Use emojis occasionally to make the conversation engaging. If asked about inappropriate topics, gently redirect to fun and educational subjects.' }],
+                    },
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 1024,
+                    },
+                }),
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.error?.message || `HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
+            const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not generate a response.';
 
             const aiResponse: Message = {
                 id: (Date.now() + 1).toString(),
-                text: data.answer || JSON.stringify(data, null, 2),
+                text: aiText,
                 sender: 'ai'
             };
             setMessages(prev => [...prev, aiResponse]);
         } catch (error) {
-            console.error("Error communicating with AI:", error);
+            console.error("Error communicating with Gemini:", error);
             const errorResponse: Message = {
                 id: (Date.now() + 1).toString(),
-                text: "An error occurred while connecting to the AI.",
+                text: `Oops! Something went wrong 😅. Please try again later.`,
                 sender: 'ai'
             };
             setMessages(prev => [...prev, errorResponse]);
