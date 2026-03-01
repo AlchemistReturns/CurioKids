@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthService } from "../../services/AuthService";
 import { UserService } from "../../services/UserService";
 import { User } from "../../types";
@@ -31,6 +30,18 @@ export default function ParentProfile({ user }: { user: User }) {
     }
   };
 
+  const handleVisibilityChange = async (childId: string, childIndex: number, option: 'everyone' | 'friends' | 'private') => {
+    try {
+      await UserService.updateStatsVisibility(childId, option);
+      setChildren(prev => prev.map((c, i) =>
+        i === childIndex ? { ...c, statsVisibility: option } : c
+      ));
+    } catch (e) {
+      console.error('Failed to update visibility:', e);
+      Alert.alert('Error', 'Failed to update visibility');
+    }
+  };
+
   const SettingItem = ({ icon, label, subtext, onPress }: { icon: any, label: string, subtext?: string, onPress?: () => void }) => (
     <TouchableOpacity
       onPress={onPress}
@@ -46,6 +57,12 @@ export default function ParentProfile({ user }: { user: User }) {
       <Ionicons name="chevron-forward" size={20} color="#5A3E29" />
     </TouchableOpacity>
   );
+
+  const VISIBILITY_OPTIONS = [
+    { key: 'everyone' as const, label: 'Everyone', icon: 'globe-outline' as const },
+    { key: 'friends' as const, label: 'Friends', icon: 'people-outline' as const },
+    { key: 'private' as const, label: 'Private', icon: 'lock-closed-outline' as const },
+  ];
 
   return (
     <View className="flex-1 bg-tigerCream">
@@ -110,6 +127,48 @@ export default function ParentProfile({ user }: { user: User }) {
                 ) : (
                   <Text className="text-gray-400 text-sm italic">No courses completed yet.</Text>
                 )}
+
+                {/* Stats Visibility Toggle */}
+                <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#FFF9E6' }}>
+                  <Text style={{ color: 'rgba(90,62,41,0.6)', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 }}>
+                    Stats Visibility
+                  </Text>
+                  <View style={{ flexDirection: 'row', backgroundColor: '#FFF9E6', borderRadius: 16, padding: 3 }}>
+                    {VISIBILITY_OPTIONS.map((opt) => {
+                      const current = child.statsVisibility || 'everyone';
+                      const isActive = current === opt.key;
+                      return (
+                        <TouchableOpacity
+                          key={opt.key}
+                          onPress={() => handleVisibilityChange(child.id, index, opt.key)}
+                          style={{
+                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            paddingVertical: 8,
+                            borderRadius: 12,
+                            backgroundColor: isActive ? '#FF6E4F' : 'transparent',
+                          }}
+                        >
+                          <Ionicons
+                            name={opt.icon}
+                            size={13}
+                            color={isActive ? '#fff' : '#5A3E29'}
+                            style={{ marginRight: 3 }}
+                          />
+                          <Text style={{
+                            fontSize: 11,
+                            fontWeight: '700',
+                            color: isActive ? '#fff' : 'rgba(90,62,41,0.5)',
+                          }}>
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
               </View>
             ))}
           </View>

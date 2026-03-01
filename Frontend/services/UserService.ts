@@ -89,5 +89,15 @@ export const UserService = {
         });
         if (!response.ok) throw new Error('Failed to unenroll child');
         return await response.json();
+    },
+
+    async updateStatsVisibility(childId: string, visibility: 'everyone' | 'friends' | 'private') {
+        const response = await fetch(`${CONFIG.BACKEND_URL}/users/stats-visibility`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ childId, visibility })
+        });
+        if (!response.ok) throw new Error('Failed to update stats visibility');
+        return await response.json();
     }
 };
