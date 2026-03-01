@@ -362,13 +362,13 @@ export default function BalanceScaleGame({
                         setShowSuccess(false);
                         onExit();
                     }} style={styles.exitButton}>
-                        <Ionicons name="close" size={28} color="#333" />
+                        <Ionicons name="close" size={28} color="#FFF" />
                     </TouchableOpacity>
                     <Text style={styles.headerText}>Balance the Scale!</Text>
                 </View>
 
                 <View style={styles.gameArea}>
-                    <View style={[styles.instructionBox, { backgroundColor: "white" }]}>
+                    <View style={[styles.instructionBox, { backgroundColor: "#FFF8F0" }]}>
                         <View style={[styles.mascotRow, { alignItems: 'flex-start' }]}>
                             <TigerMascot mood="thinking" size="small" />
                             <View style={{ flex: 1, marginLeft: 8 }}>
@@ -464,7 +464,7 @@ export default function BalanceScaleGame({
                     </View>
 
                     {/* Inventory */}
-                    <View style={[styles.inventory, { backgroundColor: "white" }]}>
+                    <View style={[styles.inventory, { backgroundColor: "#FFF8F0" }]}>
                         <Text style={styles.inventoryTitle}>
                             {mode === "subtraction" ? "Balloons 🎈" : mode === "fruit" ? "Cherries 🍒" : "Available Weights"}
                         </Text>
@@ -492,7 +492,7 @@ export default function BalanceScaleGame({
                     {/* Success Overlay */}
                     {showSuccess && (
                         <View style={styles.successOverlay}>
-                            <Ionicons name="trophy" size={80} color="#FFD700" />
+                            <Ionicons name="trophy" size={80} color="#FFB74D" />
                             <Text style={styles.successText}>Perfect Balance!</Text>
                             <Text style={styles.successSubtext}>🎉 Great Job! 🎉</Text>
                             <TouchableOpacity
@@ -697,24 +697,27 @@ function DraggableWeight({ weight, mode = "standard", themeColor = "#FF9800", on
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#FFF8E1",
+        backgroundColor: "#FFF3E0",
     },
     header: {
         flexDirection: "row",
         alignItems: "center",
         paddingHorizontal: 16,
         paddingVertical: 16,
-        backgroundColor: "white",
-        borderBottomWidth: 1,
-        borderBottomColor: "#e0e0e0",
+        backgroundColor: "#FF9800",
+        borderBottomWidth: 0,
+        borderBottomColor: "transparent",
     },
     exitButton: {
         marginRight: 16,
+        backgroundColor: "rgba(255,255,255,0.25)",
+        borderRadius: 20,
+        padding: 4,
     },
     headerText: {
         fontSize: 20,
         fontWeight: "bold",
-        color: "#333",
+        color: "#FFF",
         flex: 1,
         textAlign: "center",
         marginRight: 44,
@@ -724,21 +727,23 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     instructionBox: {
-        backgroundColor: "white",
+        backgroundColor: "#FFF8F0",
         padding: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         marginBottom: 20,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowColor: "#E65100",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.12,
+        shadowRadius: 6,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: "#FFE0B2",
     },
     instructionText: {
         fontSize: 16,
         fontWeight: "600",
         textAlign: "center",
-        color: "#333",
+        color: "#5D4037",
         marginBottom: 12,
     },
     balanceInfo: {
@@ -748,7 +753,7 @@ const styles = StyleSheet.create({
     balanceText: {
         fontSize: 18,
         fontWeight: "bold",
-        color: "#FF9800",
+        color: "#E65100",
     },
     scaleContainer: {
         height: height * 0.35,
@@ -766,14 +771,14 @@ const styles = StyleSheet.create({
         borderBottomWidth: 50,
         borderLeftColor: "transparent",
         borderRightColor: "transparent",
-        borderBottomColor: "#8B4513",
+        borderBottomColor: "#E65100",
         position: "absolute",
         bottom: 50,
     },
     beam: {
         width: width * 0.75,
         height: 10,
-        backgroundColor: "#8B4513",
+        backgroundColor: "#F57C00",
         borderRadius: 5,
         flexDirection: "row",
         justifyContent: "space-between",
@@ -785,10 +790,10 @@ const styles = StyleSheet.create({
         width: width * 0.32,
         height: 90,
         borderWidth: 3,
-        borderColor: "#8B4513",
+        borderColor: "#F57C00",
         borderTopWidth: 0,
         borderRadius: 8,
-        backgroundColor: "rgba(139, 69, 19, 0.1)",
+        backgroundColor: "rgba(255, 152, 0, 0.08)",
         marginTop: 12,
         overflow: "hidden",
     },
@@ -822,21 +827,23 @@ const styles = StyleSheet.create({
         textAlign: "center",
     },
     inventory: {
-        backgroundColor: "white",
+        backgroundColor: "#FFF8F0",
         padding: 20,
-        borderRadius: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        borderRadius: 16,
+        shadowColor: "#E65100",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.12,
+        shadowRadius: 6,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: "#FFE0B2",
     },
     inventoryTitle: {
         fontSize: 18,
         fontWeight: "bold",
         textAlign: "center",
         marginBottom: 16,
-        color: "#333",
+        color: "#5D4037",
     },
     inventoryWeights: {
         flexDirection: "row",
@@ -865,7 +872,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.85)",
+        backgroundColor: "rgba(230, 81, 0, 0.92)",
         justifyContent: "center",
         alignItems: "center",
     },
@@ -877,7 +884,7 @@ const styles = StyleSheet.create({
     },
     successSubtext: {
         fontSize: 24,
-        color: "#FFD700",
+        color: "#FFE0B2",
         marginTop: 10,
     },
     mascotRow: {
@@ -891,14 +898,14 @@ const styles = StyleSheet.create({
     hintBox: {
         marginTop: 12,
         padding: 10,
-        backgroundColor: "#FFF9C4",
-        borderRadius: 8,
+        backgroundColor: "#FFF3E0",
+        borderRadius: 10,
         borderWidth: 2,
-        borderColor: "#FFD54F",
+        borderColor: "#FFB74D",
     },
     hintText: {
         fontSize: 14,
-        color: "#F57F17",
+        color: "#E65100",
         textAlign: "center",
         fontWeight: "600",
     },
@@ -924,28 +931,30 @@ const styles = StyleSheet.create({
         left: 20,
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "white",
+        backgroundColor: "#FFF3E0",
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 20,
-        shadowColor: "#000",
+        shadowColor: "#E65100",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.15,
         shadowRadius: 4,
         elevation: 4,
         gap: 6,
+        borderWidth: 1,
+        borderColor: "#FFE0B2",
     },
     timerText: {
         fontSize: 16,
         fontWeight: "bold",
     },
     tryAgainButton: {
-        backgroundColor: "#4CAF50",
+        backgroundColor: "#FF9800",
         paddingHorizontal: 32,
         paddingVertical: 14,
         borderRadius: 25,
         marginTop: 20,
-        shadowColor: "#000",
+        shadowColor: "#E65100",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.3,
         shadowRadius: 4,

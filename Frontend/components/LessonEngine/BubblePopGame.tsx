@@ -105,7 +105,7 @@ const BubblePopGame = ({ onComplete, onExit }: BubbleGameProps) => {
 
   const spawnBubble = (targetChar: string) => {
     const id = Date.now() + Math.random();
-    const size = Math.random() * 20 + 90; // Bigger balloons
+    const size = Math.random() * 20 + 120; // Bigger balloons
     const x = Math.random() * (width - size);
     const color = COLORS[Math.floor(Math.random() * COLORS.length)];
 
