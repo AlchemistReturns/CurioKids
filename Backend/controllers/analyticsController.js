@@ -82,6 +82,33 @@ const analyticsController = {
             console.error('Get Course Stats Error:', error);
             res.status(500).json({ error: 'Failed to get course stats' });
         }
+    },
+
+    // Get Child's Rank (computed live from all children's points)
+    async getRank(req, res) {
+        try {
+            const { uid } = req.query;
+            if (!uid) return res.status(400).json({ error: 'UID required' });
+
+            // Get this child's totalPoints
+            const userDoc = await firestore.collection('users').doc(uid).get();
+            if (!userDoc.exists) return res.json({ rank: 0 });
+
+            const myPoints = userDoc.data().totalPoints || 0;
+
+            // Count how many children have MORE points
+            const higherSnapshot = await firestore.collection('users')
+                .where('role', '==', 'child')
+                .where('totalPoints', '>', myPoints)
+                .get();
+
+            const rank = higherSnapshot.size + 1;
+
+            res.json({ rank });
+        } catch (error) {
+            console.error('Get Rank Error:', error);
+            res.status(500).json({ error: 'Failed to get rank' });
+        }
     }
 };
 
